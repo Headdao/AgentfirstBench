@@ -1,0 +1,51 @@
+{
+  "name": "agent-first-bench",
+  "version": "0.1.0",
+  "description": "An open-source CLI benchmark for the agent era. Measures concurrency, throughput, reliability, and coordination overhead of model+runtime combinations.",
+  "type": "module",
+  "bin": {
+    "afb": "./dist/cli.js"
+  },
+  "main": "./dist/cli.js",
+  "files": [
+    "dist",
+    "scenarios"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "afb": "tsx src/cli.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "agent",
+    "benchmark",
+    "llm",
+    "concurrency",
+    "observability"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "cac": "^6.7.14",
+    "p-limit": "^5.0.0",
+    "yaml": "^2.5.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@typescript-eslint/eslint-plugin": "^7.16.0",
+    "@typescript-eslint/parser": "^7.16.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.3.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}

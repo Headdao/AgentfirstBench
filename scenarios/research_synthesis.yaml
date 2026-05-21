@@ -1,0 +1,47 @@
+name: research_synthesis
+kind: research_synthesis
+description: |
+  N parallel research workers each summarize one topic, then a final
+  coordinator merges the summaries. Tests whether throughput scales with
+  worker count and how much coordination tax the runtime adds.
+
+max_concurrency: 8
+temperature: 0.2
+retries: 1
+timeout_ms: 60000
+
+tasks:
+  - id: t-rust-async
+    prompt: |
+      Summarize in <=120 words: how does Rust's async runtime model differ
+      from Go's goroutines? Focus on scheduling and cancellation.
+  - id: t-event-sourcing
+    prompt: |
+      Summarize in <=120 words: when is event sourcing worth it vs. a plain
+      relational schema with audit columns?
+  - id: t-sqlite-wal
+    prompt: |
+      Summarize in <=120 words: what does SQLite's WAL mode change about
+      concurrent readers and writers?
+  - id: t-cap
+    prompt: |
+      Summarize in <=120 words: what's the practical implication of the CAP
+      theorem for a multi-region key-value store?
+  - id: t-streaming
+    prompt: |
+      Summarize in <=120 words: when should an API stream tokens vs.
+      return a single response?
+  - id: t-vector-search
+    prompt: |
+      Summarize in <=120 words: how does HNSW indexing trade off recall
+      vs. query latency?
+  - id: t-merkle
+    prompt: |
+      Summarize in <=120 words: what problem do Merkle trees solve in
+      distributed systems beyond blockchains?
+  - id: t-coordinator
+    prompt: |
+      Read the prior summaries (already in the run log) and produce a
+      one-page synthesis grouping them by theme.
+    payload:
+      role: coordinator

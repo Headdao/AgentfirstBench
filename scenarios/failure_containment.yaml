@@ -1,0 +1,25 @@
+name: failure_containment
+kind: failure_containment
+description: |
+  Inject failures into a fraction of tasks and measure whether the runtime
+  contains them (other workers keep making progress) or whether one bad
+  worker takes the whole swarm down.
+
+max_concurrency: 8
+inject_failure_rate: 0.25
+retries: 1
+timeout_ms: 20000
+
+tasks:
+  - { id: f-01, prompt: "Summarize the goal of unit testing in <=60 words." }
+  - { id: f-02, prompt: "Summarize what a load balancer does in <=60 words." }
+  - { id: f-03, prompt: "Summarize the difference between TCP and UDP in <=60 words." }
+  - { id: f-04, prompt: "Summarize what a hash map is in <=60 words." }
+  - { id: f-05, prompt: "Summarize what a thread is in <=60 words." }
+  - { id: f-06, prompt: "Summarize the goal of code review in <=60 words." }
+  - { id: f-07, prompt: "Summarize what idempotency means for an API in <=60 words." }
+  - { id: f-08, prompt: "Summarize what a CDN does in <=60 words." }
+  - { id: f-09, prompt: "Summarize what observability is in <=60 words." }
+  - { id: f-10, prompt: "Summarize what a database index is in <=60 words." }
+  - { id: f-11, prompt: "Summarize what backpressure means in <=60 words." }
+  - { id: f-12, prompt: "Summarize what dependency injection is in <=60 words." }

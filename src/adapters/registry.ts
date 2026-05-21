@@ -1,0 +1,25 @@
+import type { AgentRuntimeAdapter } from './types.js';
+import { mockAdapter } from './mock.js';
+import { rawAnthropicAdapter } from './raw-anthropic.js';
+import { rawOpenAIAdapter } from './raw-openai.js';
+import { customHttpAdapter } from './custom-http.js';
+
+const adapters = new Map<string, AgentRuntimeAdapter>();
+
+export function registerAdapter(adapter: AgentRuntimeAdapter): void {
+  adapters.set(adapter.name, adapter);
+}
+
+export function getAdapter(name: string): AgentRuntimeAdapter | undefined {
+  return adapters.get(name);
+}
+
+export function listAdapters(): string[] {
+  return [...adapters.keys()];
+}
+
+// Built-in adapters.
+registerAdapter(mockAdapter);
+registerAdapter(rawAnthropicAdapter);
+registerAdapter(rawOpenAIAdapter);
+registerAdapter(customHttpAdapter);

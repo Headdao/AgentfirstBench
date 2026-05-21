@@ -1,0 +1,30 @@
+name: concurrency_ramp
+kind: concurrency_ramp
+description: |
+  Run the same task batch at increasing concurrency levels and observe
+  where throughput plateaus or marginal returns turn negative. This is
+  the headline measurement for agent-runtime observability.
+
+concurrency_levels: [1, 2, 4, 8, 16, 32]
+temperature: 0.0
+retries: 0
+timeout_ms: 30000
+
+# 16 identical micro-tasks repeated at each concurrency level.
+tasks:
+  - { id: q-01, prompt: "What is 17 * 23? Answer with just the number." }
+  - { id: q-02, prompt: "What is 41 * 13? Answer with just the number." }
+  - { id: q-03, prompt: "What is 89 - 47? Answer with just the number." }
+  - { id: q-04, prompt: "What is 144 / 12? Answer with just the number." }
+  - { id: q-05, prompt: "What is 7^3? Answer with just the number." }
+  - { id: q-06, prompt: "What is 256 + 511? Answer with just the number." }
+  - { id: q-07, prompt: "What is 99 * 9? Answer with just the number." }
+  - { id: q-08, prompt: "What is 1024 / 8? Answer with just the number." }
+  - { id: q-09, prompt: "What is 33 + 67? Answer with just the number." }
+  - { id: q-10, prompt: "What is 50 * 50? Answer with just the number." }
+  - { id: q-11, prompt: "What is 81 / 9? Answer with just the number." }
+  - { id: q-12, prompt: "What is 12 * 12? Answer with just the number." }
+  - { id: q-13, prompt: "What is 100 - 37? Answer with just the number." }
+  - { id: q-14, prompt: "What is 64 + 64? Answer with just the number." }
+  - { id: q-15, prompt: "What is 15 * 4? Answer with just the number." }
+  - { id: q-16, prompt: "What is 30 + 70? Answer with just the number." }

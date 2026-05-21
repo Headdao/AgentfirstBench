@@ -1,0 +1,47 @@
+#!/usr/bin/env node
+import { cac } from 'cac';
+import { initCommand } from './commands/init.js';
+import { doctorCommand } from './commands/doctor.js';
+import { runCommand } from './commands/run.js';
+import { compareCommand } from './commands/compare.js';
+import { reportCommand } from './commands/report.js';
+import { version } from './version.js';
+
+const cli = cac('afb');
+
+cli
+  .command('init [dir]', 'Scaffold a new Agent First Bench project')
+  .option('--force', 'Overwrite existing files')
+  .action(initCommand);
+
+cli
+  .command('doctor', 'Check environment, adapters, credentials, and rate limits')
+  .action(doctorCommand);
+
+cli
+  .command('run <scenario>', 'Run a scenario file')
+  .option('--out <dir>', 'Output directory for the run', { default: 'runs' })
+  .option('--provider <name>', 'Override provider')
+  .option('--model <name>', 'Override model')
+  .option('--runtime <name>', 'Override runtime adapter')
+  .option('--apply', 'Allow file mutations outside the run directory (off by default)')
+  .option('--max-concurrency <n>', 'Override max concurrent workers')
+  .action(runCommand);
+
+cli
+  .command('compare <runDirA> <runDirB>', 'Compare two run directories')
+  .action(compareCommand);
+
+cli
+  .command('report <runDir>', 'Generate a markdown report from a run directory')
+  .action(reportCommand);
+
+cli.help();
+cli.version(version);
+
+try {
+  cli.parse();
+} catch (err) {
+  console.error(err instanceof Error ? err.message : err);
+  process.exit(1);
+}
