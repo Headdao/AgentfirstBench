@@ -24,6 +24,7 @@ export const ScenarioSchema = z.object({
     'structured_output',
     'long_context_recall',
     'reasoning_chain',
+    'orchestration_research',
   ]),
   description: z.string().optional(),
 
@@ -77,6 +78,27 @@ export const ScenarioSchema = z.object({
    * records the effective seed in metrics.json so the run can be replayed.
    */
   seed: z.number().int().nonnegative().optional(),
+
+  /**
+   * v0.2 orchestration block. Present iff `kind` is one of the
+   * orchestration_* kinds. Each top-level `task` becomes one full
+   * coordinator → workers → merge cycle. `tasks[i].payload` supplies
+   * the template variables the coordinator prompt references
+   * (e.g. {{topic}}).
+   */
+  orchestration: z
+    .object({
+      coordinator: z.object({
+        prompt: z.string(),
+      }),
+      worker_template: z.object({
+        prompt: z.string(),
+      }),
+      merge: z.object({
+        prompt: z.string(),
+      }),
+    })
+    .optional(),
 
   tasks: z.array(TaskSpec).min(1),
 });

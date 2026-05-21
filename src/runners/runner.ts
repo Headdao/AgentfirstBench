@@ -61,6 +61,13 @@ export async function runScenario(opts: RunnerOptions): Promise<RunnerResult> {
     );
   }
 
+  // v0.2 orchestration scenarios use a different control flow (coordinator
+  // → workers → merge per top-level task). Delegate to the dedicated runner.
+  if (opts.scenario.kind.startsWith('orchestration_')) {
+    const { runOrchestrationScenario } = await import('./orchestration.js');
+    return runOrchestrationScenario(opts);
+  }
+
   const runId = newRunId();
   const runDir = join(opts.outDir, runId);
   await mkdir(runDir, { recursive: true });

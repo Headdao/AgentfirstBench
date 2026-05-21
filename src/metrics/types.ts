@@ -48,6 +48,19 @@ export interface RunMetrics {
   eval_pass_rate: number;
   eval_mean_score: number;
 
+  /**
+   * v0.2 orchestration metrics. All zero/undefined for non-orchestration
+   * scenarios. For orchestration scenarios these are averaged across the
+   * top-level coordinator cycles in the run.
+   */
+  coordinator_latency_ms?: number;
+  worker_latency_ms_total?: number;
+  merge_latency_ms?: number;
+  /** (Σ coordinator + Σ merge) / wall_time × 100. The "coordination tax". */
+  coordination_overhead_pct?: number;
+  /** Σ worker latency / wall_time × 100. Higher means workers were busy. */
+  worker_utilization_pct?: number;
+
   // Cost
   total_cost_usd: number;
   /**

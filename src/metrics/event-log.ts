@@ -1,6 +1,7 @@
 import { createWriteStream, type WriteStream } from 'node:fs';
 
 export type EventType =
+  // §11 — v0.1 original event types
   | 'run_started'
   | 'worker_scheduled'
   | 'worker_started'
@@ -12,7 +13,14 @@ export type EventType =
   | 'coordinator_completed'
   | 'evaluation_started'
   | 'evaluation_completed'
-  | 'run_completed';
+  | 'run_completed'
+  // v0.2 addendum — orchestration lifecycle
+  | 'coordinator_planned'
+  | 'worker_assigned'
+  | 'artifact_created'
+  | 'merge_started'
+  | 'merge_completed'
+  | 'coordinator_failed';
 
 export interface BaseEvent {
   timestamp: string;

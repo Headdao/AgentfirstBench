@@ -1,0 +1,76 @@
+name: orchestration_research
+kind: orchestration_research
+description: |
+  v0.2 — measures whether an agent runtime can plan, dispatch, and merge.
+  A coordinator splits a topic into subtopics, dispatches workers to
+  answer each, then merges into a final synthesis. Evaluators score the
+  final artifact for coverage and contradiction.
+
+  Compared to v0.1's research_synthesis (which was just N parallel
+  identical-shape calls), this is a real orchestration: the coordinator
+  produces the plan dynamically. Worker count and assignment come from
+  the coordinator's output, not from a flat task list.
+
+evaluator: contains   # Phase 3 will swap in llm_judge for real quality scoring
+
+max_concurrency: 4
+temperature: 0.2
+retries: 0
+timeout_ms: 60000
+
+orchestration:
+  # The coordinator is run first. Its output is parsed as a plan.
+  # For v0.2 phase 1: plan format is JSON like { "subtopics": ["...", "..."] }.
+  coordinator:
+    prompt: |
+      You are a research coordinator. Break the topic below into 3-5
+      concrete, non-overlapping subtopics that can be researched
+      independently. Respond with a JSON object of the form:
+        { "subtopics": ["subtopic 1", "subtopic 2", ...] }
+      Output ONLY the JSON, no markdown fences, no commentary.
+
+      Topic: "{{topic}}"
+
+  # Each subtopic in the plan becomes one worker task using this template.
+  # {{subtopic}} is substituted by the runner.
+  worker_template:
+    prompt: |
+      In <=120 words, summarize what is currently known about the
+      following subtopic. Be concrete; avoid filler.
+
+      Subtopic: {{subtopic}}
+
+  # After all workers finish, the merge step combines their outputs.
+  # {{worker_outputs}} is substituted with a numbered list of worker outputs.
+  merge:
+    prompt: |
+      Synthesize the following research summaries into one coherent
+      brief (<=300 words). Note any contradictions explicitly. Don't
+      add information not present in the summaries.
+
+      Worker summaries:
+      {{worker_outputs}}
+
+# `tasks` here are the topics fed to the coordinator, one per row.
+# Each becomes a full coordinator→workers→merge cycle.
+tasks:
+  - id: t-async-runtimes
+    prompt: ignored   # the orchestration.coordinator.prompt is what runs
+    payload:
+      topic: "How async runtimes differ across modern programming languages"
+    expect:
+      needles: ["scheduler"]   # placeholder Phase-1 evaluator hook
+
+  - id: t-vector-databases
+    prompt: ignored
+    payload:
+      topic: "Tradeoffs in vector database indexing approaches"
+    expect:
+      needles: ["recall"]
+
+  - id: t-edge-compute
+    prompt: ignored
+    payload:
+      topic: "When edge compute makes sense vs centralized cloud"
+    expect:
+      needles: ["latency"]

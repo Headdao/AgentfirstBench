@@ -1,5 +1,6 @@
 import type { AgentRuntimeAdapter } from './types.js';
 import { mockAdapter } from './mock.js';
+import { mockCoordinatorAdapter } from './mock-coordinator.js';
 import { rawAnthropicAdapter } from './raw-anthropic.js';
 import { rawOpenAIAdapter } from './raw-openai.js';
 import { rawGoogleAdapter } from './raw-google.js';
@@ -21,6 +22,7 @@ export function listAdapters(): string[] {
 
 // Built-in adapters.
 registerAdapter(mockAdapter);
+registerAdapter(mockCoordinatorAdapter);
 registerAdapter(rawAnthropicAdapter);
 registerAdapter(rawOpenAIAdapter);
 registerAdapter(rawGoogleAdapter);
