@@ -10,6 +10,8 @@ import { doctorCommand } from './commands/doctor.js';
 import { runCommand } from './commands/run.js';
 import { compareCommand } from './commands/compare.js';
 import { reportCommand } from './commands/report.js';
+import { modelsCommand } from './commands/models.js';
+import { matrixCommand } from './commands/matrix.js';
 import { version } from './version.js';
 
 const cli = cac('afb');
@@ -37,6 +39,19 @@ cli
 cli
   .command('compare <runDirA> <runDirB>', 'Compare two run directories')
   .action(compareCommand);
+
+cli
+  .command('models', 'List all models known to the pricing table')
+  .action(modelsCommand);
+
+cli
+  .command('matrix <scenario>', 'Run a scenario across multiple models and produce a comparison')
+  .option('--out <dir>', 'Output directory for the matrix run', { default: 'runs' })
+  .option('--models <list>', 'Comma-separated provider/model ids (skip the interactive picker)')
+  .option('--max-concurrency <n>', 'Override max concurrent workers (applies to every model)')
+  .option('--apply', 'Allow file mutations outside the run directory')
+  .option('--yes', 'Skip the "Proceed?" confirmation')
+  .action(matrixCommand);
 
 cli
   .command('report <runDir>', 'Generate a markdown report from a run directory')
