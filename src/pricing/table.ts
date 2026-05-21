@@ -48,6 +48,28 @@ const PRICING: Record<string, ModelPricing> = {
     source: 'anthropic.com/pricing',
   },
 
+  // Google Gemini — https://ai.google.dev/pricing
+  // ⚠️ Rates below are placeholders pending verification against the
+  // current Google pricing page. PRs welcome with updated as_of dates.
+  'google/gemini-3.5-flash': {
+    input_per_mtok: 0.15,
+    output_per_mtok: 0.6,
+    as_of: '2026-01-01',
+    source: 'ai.google.dev/pricing (placeholder, verify before billing)',
+  },
+  'google/gemini-3.5-pro': {
+    input_per_mtok: 1.25,
+    output_per_mtok: 10,
+    as_of: '2026-01-01',
+    source: 'ai.google.dev/pricing (placeholder, verify before billing)',
+  },
+  'google/gemini-2.5-flash': {
+    input_per_mtok: 0.075,
+    output_per_mtok: 0.3,
+    as_of: '2026-01-01',
+    source: 'ai.google.dev/pricing (placeholder, verify before billing)',
+  },
+
   // OpenAI — https://openai.com/api/pricing
   'openai/gpt-4o': {
     input_per_mtok: 2.5,

@@ -2,6 +2,7 @@ import type { AgentRuntimeAdapter } from './types.js';
 import { mockAdapter } from './mock.js';
 import { rawAnthropicAdapter } from './raw-anthropic.js';
 import { rawOpenAIAdapter } from './raw-openai.js';
+import { rawGoogleAdapter } from './raw-google.js';
 import { customHttpAdapter } from './custom-http.js';
 
 const adapters = new Map<string, AgentRuntimeAdapter>();
@@ -22,4 +23,5 @@ export function listAdapters(): string[] {
 registerAdapter(mockAdapter);
 registerAdapter(rawAnthropicAdapter);
 registerAdapter(rawOpenAIAdapter);
+registerAdapter(rawGoogleAdapter);
 registerAdapter(customHttpAdapter);

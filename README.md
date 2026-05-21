@@ -39,8 +39,21 @@ afb report runs/run_xxxxxx
 ```
 
 The `mock` adapter is offline and deterministic — useful for kicking the tires
-without API keys. Switch to `--runtime raw-anthropic` (and set
-`ANTHROPIC_API_KEY`) for real measurements.
+without API keys. For real measurements, pick a provider:
+
+```bash
+# Anthropic
+ANTHROPIC_API_KEY=… afb run scenarios/concurrency_ramp.yaml \
+  --runtime raw-anthropic --provider anthropic --model claude-sonnet-4-6
+
+# OpenAI
+OPENAI_API_KEY=… afb run scenarios/concurrency_ramp.yaml \
+  --runtime raw-openai --provider openai --model gpt-4o-mini
+
+# Google Gemini
+GOOGLE_API_KEY=… afb run scenarios/concurrency_ramp.yaml \
+  --runtime raw-google --provider google --model gemini-3.5-flash
+```
 
 ## Commands
 
@@ -98,8 +111,8 @@ export interface AgentRuntimeAdapter {
 }
 ```
 
-Built-in: `mock`, `raw-anthropic`, `raw-openai`, `custom-http`.
-Planned: `raw-google`, `raw-openrouter`, `claude-code`, `codex`, `antigravity`, `openclaw`.
+Built-in: `mock`, `raw-anthropic`, `raw-openai`, `raw-google`, `custom-http`.
+Planned: `raw-openrouter`, `claude-code`, `codex`, `antigravity`, `openclaw`.
 
 ### `custom-http` — benchmark your own runtime without writing TS
 
