@@ -43,6 +43,11 @@ export interface RunMetrics {
   total_tokens: number;
   wall_time_ms: number;
 
+  // Evaluator scoring (populated for all runs; only meaningful when
+  // evaluator.name !== 'success' since otherwise it duplicates success_rate)
+  eval_pass_rate: number;
+  eval_mean_score: number;
+
   // Cost
   total_cost_usd: number;
   /**

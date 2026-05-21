@@ -14,17 +14,28 @@ import { formatUsd } from '../utils/format.js';
 export function verdictForRun(m: RunMetrics): string {
   const lines: string[] = ['## Verdict', ''];
 
-  // Reliability
+  // Reliability (did the adapter return ok?)
   const sr = m.success_rate;
   if (sr >= 0.999) {
-    lines.push(`- **Reliability**: ✓ 100% success (${m.workers_succeeded}/${m.workers_total})`);
+    lines.push(`- **Reliability**: ✓ 100% adapter success (${m.workers_succeeded}/${m.workers_total})`);
   } else if (sr >= 0.95) {
     lines.push(
-      `- **Reliability**: ⚠️ ${(sr * 100).toFixed(1)}% success — ${m.workers_failed} task(s) failed`,
+      `- **Reliability**: ⚠️ ${(sr * 100).toFixed(1)}% adapter success — ${m.workers_failed} task(s) failed`,
     );
   } else {
     lines.push(
-      `- **Reliability**: ✗ ${(sr * 100).toFixed(1)}% success — ${m.workers_failed} failures, investigate before trusting numbers below`,
+      `- **Reliability**: ✗ ${(sr * 100).toFixed(1)}% adapter success — ${m.workers_failed} failures, investigate before trusting numbers below`,
+    );
+  }
+
+  // Accuracy (did the model produce a correct/well-formed output?)
+  // Only surface when a real evaluator was used — otherwise it duplicates Reliability.
+  if (m.evaluator.name !== 'success') {
+    const ap = m.eval_pass_rate;
+    const apPct = (ap * 100).toFixed(1);
+    const apIcon = ap >= 0.95 ? '✓' : ap >= 0.7 ? '⚠️' : '✗';
+    lines.push(
+      `- **Accuracy** (${m.evaluator.name}): ${apIcon} ${apPct}% passed — mean score ${m.eval_mean_score.toFixed(2)}`,
     );
   }
 
@@ -102,7 +113,15 @@ export function verdictForMatrix(rows: MatrixRow[]): string {
   if (rows.length === 0) return '';
   const lines: string[] = ['## Verdict', ''];
 
-  const reliable = rows.filter((r) => r.metrics.success_rate >= 0.95);
+  // "Reliable" = adapter usually returns ok AND, when a real evaluator
+  // is in use, accuracy is at least 70%. Picking the cheapest model that
+  // gets the wrong answer cheaply is the wrong recommendation.
+  const reliable = rows.filter((r) => {
+    if (r.metrics.success_rate < 0.95) return false;
+    if (r.metrics.evaluator.name !== 'success' && r.metrics.eval_pass_rate < 0.7) return false;
+    return true;
+  });
+  const hasAccuracy = rows.some((r) => r.metrics.evaluator.name !== 'success');
 
   if (rows.length === 1) {
     lines.push(
@@ -119,6 +138,14 @@ export function verdictForMatrix(rows: MatrixRow[]): string {
     lines.push(
       `- **Cheapest reliable**: \`${cheapest.label}\` (${formatUsd(costPerSuccess(cheapest.metrics))} per success)`,
     );
+
+    // Most accurate (only when a real evaluator was used)
+    if (hasAccuracy) {
+      const mostAccurate = pickMax(reliable, (r) => r.metrics.eval_pass_rate);
+      lines.push(
+        `- **Most accurate**: \`${mostAccurate.label}\` (${(mostAccurate.metrics.eval_pass_rate * 100).toFixed(1)}% pass — ${mostAccurate.metrics.evaluator.name})`,
+      );
+    }
 
     // Fastest avg
     const fastest = pickMin(reliable, (r) => r.metrics.avg_latency_ms);
@@ -154,6 +181,9 @@ export function verdictForMatrix(rows: MatrixRow[]): string {
     const reasons: string[] = [];
     const m = r.metrics;
     if (m.success_rate < 0.95) reasons.push(`${(m.success_rate * 100).toFixed(1)}% success`);
+    if (m.evaluator.name !== 'success' && m.eval_pass_rate < 0.5) {
+      reasons.push(`${(m.eval_pass_rate * 100).toFixed(1)}% accuracy (${m.evaluator.name})`);
+    }
     if (m.per_level && m.per_level.length > 1) {
       const s = summarizeSweep(m.per_level);
       if (s?.inflection && s.inflection.next_gain_pct < 0) {

@@ -16,7 +16,15 @@ export type NetworkPolicy = z.infer<typeof NetworkPolicySchema>;
 
 export const ScenarioSchema = z.object({
   name: z.string(),
-  kind: z.enum(['research_synthesis', 'concurrency_ramp', 'failure_containment', 'coding_patch']),
+  kind: z.enum([
+    'research_synthesis',
+    'concurrency_ramp',
+    'failure_containment',
+    'coding_patch',
+    'structured_output',
+    'long_context_recall',
+    'reasoning_chain',
+  ]),
   description: z.string().optional(),
 
   provider: z.string().optional(),
@@ -35,6 +43,13 @@ export const ScenarioSchema = z.object({
    * workers must not initiate additional network calls.
    */
   network_policy: NetworkPolicySchema.default({ mode: 'disabled' }),
+
+  /**
+   * Which evaluator to use for scoring task outputs. Defaults to "success"
+   * which just checks the adapter call didn't error. For quality scenarios,
+   * pick "exact_match", "contains", or "json_schema" (or register your own).
+   */
+  evaluator: z.string().default('success'),
 
   /**
    * §14 reproducibility marker. "inline/v1" means prompts are stored

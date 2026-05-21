@@ -48,15 +48,15 @@ function metrics(overrides: Partial<RunMetrics> = {}): RunMetrics {
 
 describe('verdictForRun — reliability', () => {
   it('emits ✓ for 100% success', () => {
-    expect(verdictForRun(metrics())).toMatch(/✓ 100% success/);
+    expect(verdictForRun(metrics())).toMatch(/✓ 100% adapter success/);
   });
   it('emits ⚠️ for 95–99.9% success', () => {
     const v = verdictForRun(metrics({ success_rate: 0.97, workers_failed: 3, workers_succeeded: 97, workers_total: 100 }));
-    expect(v).toMatch(/⚠️ 97.0% success/);
+    expect(v).toMatch(/⚠️ 97.0% adapter success/);
   });
   it('emits ✗ for <95% success', () => {
     const v = verdictForRun(metrics({ success_rate: 0.5, workers_failed: 5, workers_succeeded: 5, workers_total: 10 }));
-    expect(v).toMatch(/✗ 50.0% success/);
+    expect(v).toMatch(/✗ 50.0% adapter success/);
     expect(v).toMatch(/investigate/);
   });
 });

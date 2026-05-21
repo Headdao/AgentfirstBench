@@ -1,0 +1,118 @@
+name: long_context_recall
+kind: long_context_recall
+description: |
+  Needle-in-haystack: each task buries a unique fact inside a long
+  document and asks the model to retrieve it. Tests whether the
+  advertised context window is actually usable.
+
+  Document size here is intentionally small (~2k tokens each) so the
+  benchmark stays cheap. Scale up the filler text for serious testing.
+
+evaluator: contains
+
+max_concurrency: 4
+temperature: 0
+retries: 0
+timeout_ms: 60000
+
+tasks:
+  - id: needle-code
+    prompt: |
+      Read the document below and answer the question at the end.
+
+      DOCUMENT:
+      Chapter 1. The quarterly engineering review covered three areas of
+      progress: API stability, observability tooling, and the gradual
+      migration of internal services from REST to gRPC. The team reported
+      that the migration is now 60% complete, with the remaining services
+      scheduled for the next two quarters.
+
+      Chapter 2. Performance work continued on the data ingestion path.
+      The previous bottleneck — synchronous writes to the audit log —
+      was resolved by batching writes in 50ms windows, reducing p99
+      latency from 410ms to 88ms. The internal launch code for this
+      milestone is FALCON-7421.
+
+      Chapter 3. The reliability working group spent the quarter
+      replacing the legacy retry library. Two-thirds of services have
+      adopted the new library, which exposes structured retry budgets.
+      No production incidents have been attributed to retry storms
+      since rollout began.
+
+      Chapter 4. Hiring slowed compared to the previous quarter. Of the
+      twelve open roles, six were filled, with the remainder rolled
+      over. Most attrition was on the platform team, where two senior
+      engineers transitioned to other companies.
+
+      Chapter 5. Looking ahead, the next quarter will focus on closing
+      out the gRPC migration, completing rollout of the new retry
+      library, and a small refactor of the request-routing layer.
+
+      QUESTION: What is the internal launch code mentioned in Chapter 2?
+      Answer with just the code, nothing else.
+    expect:
+      needles: ["FALCON-7421"]
+
+  - id: needle-percentage
+    prompt: |
+      Read the document below and answer the question at the end.
+
+      DOCUMENT:
+      The annual customer survey was sent to all 4,800 active customers
+      and received 1,212 responses, a response rate of approximately 25%.
+      The survey was designed to measure satisfaction across five
+      dimensions: ease of use, performance, support quality, pricing
+      transparency, and onboarding experience.
+
+      Ease of use scored the highest, with 87% of respondents rating it
+      "good" or "excellent". Performance came in second at 81%. Support
+      quality and pricing transparency tied at 73%. The biggest area of
+      concern was onboarding experience: only 54% of new customers
+      reported a positive first-week experience, and verbatim comments
+      frequently mentioned the difficulty of configuring SSO integration.
+
+      Compared to the previous year, ease of use rose by 4 percentage
+      points, performance held steady, and onboarding dropped by 6 points.
+      The drop in onboarding was attributed to the introduction of new
+      compliance steps in Q2 that have not yet been streamlined.
+
+      The verbatim comment most frequently cited as a strength was
+      "responsive support team". The verbatim comment most frequently
+      cited as a weakness was "SSO setup is painful".
+
+      QUESTION: What percentage of new customers reported a positive
+      first-week experience? Answer with just the number followed by %.
+    expect:
+      needles: ["54%"]
+
+  - id: needle-date
+    prompt: |
+      Read the document below and answer the question at the end.
+
+      DOCUMENT:
+      The compliance review identified four areas requiring attention.
+      First, the data-retention policy needed to be updated to reflect
+      changes in regional regulations that took effect in early 2026.
+      Second, vendor security questionnaires for three of our largest
+      customers needed to be completed by the end of Q2. Third, the
+      annual penetration test was overdue. Fourth, the incident
+      response runbook had not been exercised in over a year.
+
+      Of these, the most urgent was the penetration test. The previous
+      test was completed on 2025-08-12, and our contractual obligation
+      with two enterprise customers requires annual testing. The current
+      vendor was unable to schedule a new test before September, so a
+      secondary vendor was engaged.
+
+      The new test was scheduled to begin on 2026-04-22 and run for
+      three weeks, with the final report due by 2026-05-20. Findings
+      will be triaged according to the standard severity matrix.
+
+      Internal stakeholders have been notified, and the engineering
+      leadership has agreed to allocate one engineer per affected team
+      for remediation work in the following quarter.
+
+      QUESTION: On what date was the new penetration test scheduled to
+      begin? Answer with just the date in YYYY-MM-DD format.
+    expect:
+      needles: ["2026-04-22"]

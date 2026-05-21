@@ -28,6 +28,11 @@ export function renderMarkdown(m: RunMetrics): string {
   lines.push(`| Workers failed | ${m.workers_failed} |`);
   lines.push(`| Workers retried | ${m.workers_retried} |`);
   lines.push(`| Success rate | ${(m.success_rate * 100).toFixed(1)}% |`);
+  if (m.evaluator.name !== 'success') {
+    lines.push(
+      `| Accuracy (${m.evaluator.name}) | ${(m.eval_pass_rate * 100).toFixed(1)}% pass, mean score ${m.eval_mean_score.toFixed(2)} |`,
+    );
+  }
   lines.push(`| Avg latency | ${Math.round(m.avg_latency_ms)} ms |`);
   lines.push(`| p50 / p95 / p99 latency | ${Math.round(m.p50_latency_ms)} / ${Math.round(m.p95_latency_ms)} / ${Math.round(m.p99_latency_ms)} ms |`);
   lines.push(`| Peak concurrency | ${m.peak_concurrency} |`);

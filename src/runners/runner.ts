@@ -9,7 +9,8 @@ import { newRunId } from '../utils/run-id.js';
 import { mean, percentile } from '../utils/stats.js';
 import { version as afbVersion } from '../version.js';
 import { lookupPricing, estimateUsd } from '../pricing/table.js';
-import { successEvaluator } from '../evaluators/types.js';
+import { getEvaluator } from '../evaluators/registry.js';
+import { successEvaluator } from '../evaluators/success.js';
 import { mulberry32, randomSeed } from '../utils/prng.js';
 
 export interface ProgressInfo {
@@ -92,7 +93,18 @@ export async function runScenario(opts: RunnerOptions): Promise<RunnerResult> {
 
   const allResults: AgentTaskResult[] = [];
   const perLevel: NonNullable<RunMetrics['per_level']> = [];
+  const evalScores: number[] = [];
+  let evalPasses = 0;
   let workersRetried = 0;
+
+  // Resolve evaluator. Fall back to success if name not registered (with a warning).
+  const evaluatorName = opts.scenario.evaluator;
+  const evaluator = getEvaluator(evaluatorName) ?? successEvaluator;
+  if (evaluator.name !== evaluatorName) {
+    console.warn(
+      `Warning: evaluator '${evaluatorName}' not registered, falling back to '${evaluator.name}'`,
+    );
+  }
 
   // Progress tracking — handed to the CLI via opts.onProgress so it can
   // render a spinner. The runner itself doesn't render anything.
@@ -208,6 +220,20 @@ export async function runScenario(opts: RunnerOptions): Promise<RunnerResult> {
           if (last!.ok) progress.completed += 1;
           else progress.failed += 1;
           emitProgress();
+
+          // Score the output. Records score regardless of adapter ok/fail
+          // (failed-adapter rows score 0 under every evaluator we ship).
+          log.emit('evaluation_started', { task_id: task.id });
+          const evalOut = await evaluator.evaluate({ task, result: last! });
+          evalScores.push(evalOut.score);
+          if (evalOut.passed) evalPasses += 1;
+          log.emit('evaluation_completed', {
+            task_id: task.id,
+            score: evalOut.score,
+            passed: evalOut.passed,
+            detail: evalOut.detail,
+          });
+
           return last!;
         }),
       ),
@@ -269,7 +295,7 @@ export async function runScenario(opts: RunnerOptions): Promise<RunnerResult> {
     scenario_kind: opts.scenario.kind,
     prompt_template_version: opts.scenario.prompt_template_version,
     scoring_profile_version: opts.scenario.scoring_profile_version,
-    evaluator: { name: successEvaluator.name, version: successEvaluator.version },
+    evaluator: { name: evaluator.name, version: evaluator.version },
     temperature: opts.scenario.temperature ?? 0.2,
     started_at: startedAt,
     completed_at: completedAt,
@@ -292,6 +318,8 @@ export async function runScenario(opts: RunnerOptions): Promise<RunnerResult> {
     total_output_tokens: totalOutput,
     total_tokens: totalInput + totalOutput,
     wall_time_ms: wallMs,
+    eval_pass_rate: evalScores.length ? evalPasses / evalScores.length : 0,
+    eval_mean_score: evalScores.length ? mean(evalScores) : 0,
     total_cost_usd: totalCostUsd,
     cost_source: costSource,
     pricing_as_of: pricingAsOf,

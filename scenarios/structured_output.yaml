@@ -1,0 +1,106 @@
+name: structured_output
+kind: structured_output
+description: |
+  Measures whether the model returns valid JSON matching a requested
+  schema (and, optionally, the expected values). This is the headline
+  metric for anyone wiring the model into a pipeline that downstream
+  code will parse.
+
+evaluator: json_schema
+
+max_concurrency: 4
+temperature: 0
+retries: 0
+timeout_ms: 30000
+
+tasks:
+  - id: extract-person
+    prompt: |
+      Extract the following fields from the text as a JSON object.
+      Required keys: name (string), age (integer), city (string).
+      Return ONLY the JSON, no markdown fences, no commentary.
+
+      Text: "Alice Chen is 30 years old and lives in Taipei."
+    expect:
+      schema:
+        required: [name, age, city]
+        properties:
+          name: { type: string }
+          age: { type: integer }
+          city: { type: string }
+      values:
+        name: "Alice Chen"
+        age: 30
+        city: "Taipei"
+
+  - id: extract-order
+    prompt: |
+      Extract a JSON order summary.
+      Required keys: order_id (string), total_usd (number), items (array).
+      Return ONLY the JSON.
+
+      Email body: "Confirmation for order #A-1042. You ordered 2 widgets
+      ($14.50 each) and 1 sprocket ($8.00). Total: $37.00."
+    expect:
+      schema:
+        required: [order_id, total_usd, items]
+        properties:
+          order_id: { type: string }
+          total_usd: { type: number }
+          items: { type: array }
+      values:
+        total_usd: 37
+        order_id: "A-1042"
+
+  - id: extract-event
+    prompt: |
+      Extract a calendar event as JSON.
+      Required keys: title (string), date (string, ISO YYYY-MM-DD), attendees (array of strings).
+      Return ONLY the JSON.
+
+      Note: "Quarterly review on 2026-06-15 with Dana, Eli, Faye."
+    expect:
+      schema:
+        required: [title, date, attendees]
+        properties:
+          title: { type: string }
+          date: { type: string }
+          attendees: { type: array }
+      values:
+        date: "2026-06-15"
+
+  - id: extract-flight
+    prompt: |
+      Extract flight info as JSON.
+      Required keys: flight_number (string), departure (string), arrival (string), on_time (boolean).
+      Return ONLY the JSON.
+
+      Text: "Flight BR-198 departs TPE at 09:25 and arrives NRT at 13:40. Status: on time."
+    expect:
+      schema:
+        required: [flight_number, departure, arrival, on_time]
+        properties:
+          flight_number: { type: string }
+          departure: { type: string }
+          arrival: { type: string }
+          on_time: { type: boolean }
+      values:
+        flight_number: "BR-198"
+        on_time: true
+
+  - id: extract-empty
+    prompt: |
+      Extract user mentions from the text as JSON.
+      Required keys: count (integer), mentions (array of strings).
+      Return ONLY the JSON.
+
+      Text: "I went to the store and bought milk."
+    expect:
+      schema:
+        required: [count, mentions]
+        properties:
+          count: { type: integer }
+          mentions: { type: array }
+      values:
+        count: 0
+        mentions: []

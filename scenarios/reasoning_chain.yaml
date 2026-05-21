@@ -1,0 +1,103 @@
+name: reasoning_chain
+kind: reasoning_chain
+description: |
+  Multi-step word problems with a single verifiable answer. Tests
+  reasoning quality at a cost a non-frontier model can afford. The
+  answers are unambiguous so exact_match scoring is deterministic.
+
+evaluator: exact_match
+
+max_concurrency: 4
+temperature: 0
+retries: 0
+timeout_ms: 60000
+
+tasks:
+  - id: trains-meet
+    prompt: |
+      A train leaves Station A at 9:00 AM traveling east at 60 km/h.
+      Another train leaves Station B at 9:30 AM traveling west at 80 km/h.
+      Stations A and B are 200 km apart.
+
+      At what time do the trains meet?
+
+      Answer with just the time in 24-hour HH:MM format (e.g. "13:45"),
+      nothing else.
+    expect:
+      answer: "10:30"
+
+  - id: candy-split
+    prompt: |
+      A box contains 84 candies. They are split among 3 children so that
+      the oldest gets twice as many as the middle child, and the youngest
+      gets the same as the middle child.
+
+      How many candies does the oldest child get?
+
+      Answer with just the number, nothing else.
+    expect:
+      answer: "42"
+
+  - id: averages
+    prompt: |
+      A student's average score across 4 tests is 78. Their score on the
+      5th test brings their average up to 80.
+
+      What did they score on the 5th test?
+
+      Answer with just the number, nothing else.
+    expect:
+      answer: "88"
+
+  - id: percent-discount
+    prompt: |
+      A jacket is on sale: first 20% off the listed price, then an
+      additional 15% off the discounted price. If you pay $102 in total,
+      what was the original listed price?
+
+      Answer with just the number in USD, nothing else (no $ sign, no
+      commas).
+    expect:
+      answer: "150"
+
+  - id: digits-sum
+    prompt: |
+      Find the smallest positive integer N such that:
+      - N is divisible by 7
+      - The digits of N sum to 13
+      - N is greater than 100
+
+      Answer with just N, nothing else.
+    expect:
+      answer: "139"
+
+  - id: clock-angle
+    prompt: |
+      What is the angle in degrees between the hour and minute hands of
+      a clock at exactly 3:15?
+
+      Answer with just the number, nothing else.
+    expect:
+      answer: "7.5"
+
+  - id: water-mix
+    prompt: |
+      You mix 3 liters of water at 80°C with 2 liters of water at 30°C.
+      Assuming no heat loss, what is the final temperature in °C?
+
+      Answer with just the number, nothing else (no unit).
+    expect:
+      answer: "60"
+
+  - id: rope-bridge
+    prompt: |
+      Four people need to cross a bridge at night with one flashlight.
+      The bridge holds at most two at a time, and they must walk at the
+      slower person's pace. Their crossing times are 1, 2, 5, and 10
+      minutes.
+
+      What is the minimum total time for all four to cross?
+
+      Answer with just the number in minutes, nothing else.
+    expect:
+      answer: "17"

@@ -18,9 +18,12 @@ export function renderMatrixMarkdown(scenarioName: string, rows: MatrixRow[]): s
   lines.push(verdictForMatrix(rows));
 
   const hasSweep = rows.some((r) => r.metrics.per_level && r.metrics.per_level.length > 1);
+  const hasAccuracy = rows.some((r) => r.metrics.evaluator.name !== 'success');
 
   // Headline table
-  const headers = ['Model', 'OK', 'Avg ms', 'p95 ms', 'Total $', '$/success'];
+  const headers = ['Model', 'OK'];
+  if (hasAccuracy) headers.push('Accuracy');
+  headers.push('Avg ms', 'p95 ms', 'Total $', '$/success');
   if (hasSweep) headers.push('Peak thru/s', 'Inflection');
   lines.push('| ' + headers.join(' | ') + ' |');
   lines.push('| ' + headers.map(() => '---').join(' | ') + ' |');
@@ -29,14 +32,23 @@ export function renderMatrixMarkdown(scenarioName: string, rows: MatrixRow[]): s
     const m = r.metrics;
     const successPct = `${(m.success_rate * 100).toFixed(1)}%`;
     const costPerOk = m.workers_succeeded > 0 ? m.total_cost_usd / m.workers_succeeded : 0;
-    const row = [
+    const row: string[] = [
       `\`${r.label}\``,
       `${m.workers_succeeded}/${m.workers_total} (${successPct})`,
+    ];
+    if (hasAccuracy) {
+      row.push(
+        m.evaluator.name === 'success'
+          ? '—'
+          : `${(m.eval_pass_rate * 100).toFixed(1)}%`,
+      );
+    }
+    row.push(
       String(Math.round(m.avg_latency_ms)),
       String(Math.round(m.p95_latency_ms)),
       formatUsd(m.total_cost_usd),
       formatUsd(costPerOk),
-    ];
+    );
     if (hasSweep) {
       const sum = m.per_level ? summarizeSweep(m.per_level) : null;
       if (sum) {
@@ -80,23 +92,36 @@ export function renderMatrixMarkdown(scenarioName: string, rows: MatrixRow[]): s
 /** Stdout-friendly fixed-width version of the headline table. */
 export function renderMatrixStdout(rows: MatrixRow[]): string {
   if (rows.length === 0) return '(no rows)';
+  const hasAccuracy = rows.some((r) => r.metrics.evaluator.name !== 'success');
+
+  const header = ['Model', 'OK'];
+  const widths = [38, 11];
+  if (hasAccuracy) {
+    header.push('Accuracy');
+    widths.push(10);
+  }
+  header.push('Avg', 'p95', 'Cost', '$/OK');
+  widths.push(7, 7, 12, 12);
+
   const out: string[] = [];
-  const header = ['Model', 'OK', 'Avg', 'p95', 'Cost', '$/OK'];
-  const widths = [38, 11, 7, 7, 12, 12];
   out.push(header.map((h, i) => h.padEnd(widths[i])).join(''));
   out.push('-'.repeat(widths.reduce((a, b) => a + b, 0)));
   for (const r of rows) {
     const m = r.metrics;
     const successPct = `${(m.success_rate * 100).toFixed(0)}%`;
     const costPerOk = m.workers_succeeded > 0 ? m.total_cost_usd / m.workers_succeeded : 0;
-    const cells = [
-      r.label,
-      `${m.workers_succeeded}/${m.workers_total} ${successPct}`,
+    const cells: string[] = [r.label, `${m.workers_succeeded}/${m.workers_total} ${successPct}`];
+    if (hasAccuracy) {
+      cells.push(
+        m.evaluator.name === 'success' ? '—' : `${(m.eval_pass_rate * 100).toFixed(0)}%`,
+      );
+    }
+    cells.push(
       String(Math.round(m.avg_latency_ms)),
       String(Math.round(m.p95_latency_ms)),
       formatUsd(m.total_cost_usd),
       formatUsd(costPerOk),
-    ];
+    );
     out.push(cells.map((c, i) => c.padEnd(widths[i])).join(''));
   }
   return out.join('\n');
