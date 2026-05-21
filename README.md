@@ -165,9 +165,58 @@ Coding scenarios（會改動檔案的）延後到 v0.2，因為涉及安全跟�
 |---|---|
 | `afb init [dir]` | 互動式初始化（會問 provider 跟 API key） |
 | `afb doctor` | 檢查 Node 版本、adapter、API key |
-| `afb run <scenario>` | 跑場景，產出 `events.jsonl` + `metrics.json` |
+| `afb models` | 列出所有可測的 model（按 provider 分組，含費率跟 key 狀態） |
+| `afb run <scenario>` | 跑單一 model，產出 `events.jsonl` + `metrics.json` + `report.md` |
+| `afb matrix <scenario>` | 一次跑多個 model，輸出並排比較 `matrix.md` |
 | `afb compare <a> <b>` | 並排比較兩次 run（含 sweep 對照） |
-| `afb report <runDir>` | 從 `metrics.json` 產生 `report.md` |
+| `afb report <runDir>` | 從 `metrics.json` 重新產生 `report.md` |
+
+---
+
+## 多 Model 比評（`afb matrix`）
+
+要在同一場景上比好幾個 model — 這是最常見的用法。
+
+### 看可以測什麼
+
+```bash
+afb models
+```
+
+會列出所有 model（含費率，並標出每個 provider 的 API key 有沒有設）。
+
+### 互動模式
+
+```bash
+afb matrix scenarios/concurrency_ramp.yaml
+```
+
+跳出編號清單，輸入 `1,3,5` 之類的選擇，或 `all` 全選。
+
+### 腳本模式
+
+```bash
+afb matrix scenarios/concurrency_ramp.yaml --models google/gemini-3.5-flash,google/gemini-2.5-flash,anthropic/claude-haiku-4-5 --yes
+```
+
+跑前會：
+1. **檢查 API key** — 缺哪個就拒跑（不會跑到一半才發現）
+2. **列出 model + 費率** 等你確認 `Proceed? [Y/n]`（`--yes` 跳過）
+3. **依序執行**（避免同 provider rate limit），每個 model 有獨立 spinner
+
+跑完輸出：
+
+```
+Model                       OK         Avg    p95    Cost      $/OK
+-----------------------------------------------------------------------
+google/gemini-3.5-flash     8/8 100%   412    678    $0.052    $0.0065
+google/gemini-2.5-flash     8/8 100%   287    489    $0.018    $0.0023
+anthropic/claude-haiku-4-5  8/8 100%   523    812    $0.124    $0.0155
+
+Matrix written to: runs/matrix_xxxxx/matrix.md
+```
+
+`matrix.md` 還包含 sweep scenario 的 **per-level throughput 對照表**，可以直接看到誰先到飽和點。
 
 ---
 

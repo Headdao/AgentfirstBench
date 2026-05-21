@@ -58,11 +58,62 @@ Override the model with `--model <name>`.
 
 | Command | What it does |
 | --- | --- |
-| `afb init [dir]` | Scaffolds a new bench project with sample scenarios |
+| `afb init [dir]` | Interactive project scaffold (asks for provider + API key) |
 | `afb doctor` | Checks Node version, adapters, and provider credentials |
-| `afb run <scenario>` | Runs a scenario, emits `events.jsonl` + `metrics.json` |
+| `afb models` | Lists every model in the pricing table, grouped by provider |
+| `afb run <scenario>` | Runs one model; emits `events.jsonl` + `metrics.json` + `report.md` |
+| `afb matrix <scenario>` | Runs many models on the same scenario and renders `matrix.md` |
 | `afb compare <a> <b>` | Side-by-side metrics for two run directories |
-| `afb report <runDir>` | Renders `report.md` from `metrics.json` |
+| `afb report <runDir>` | Regenerates `report.md` from `metrics.json` |
+
+## Multi-model comparison (`afb matrix`)
+
+The headline workflow — compare several models on the same scenario in one go.
+
+### See what you can bench
+
+```bash
+afb models
+```
+
+Lists every model with its rate and whether the required API key is set.
+
+### Interactive picker
+
+```bash
+afb matrix scenarios/concurrency_ramp.yaml
+```
+
+You get a numbered list; type `1,3,5` or `all`.
+
+### Scripted
+
+```bash
+afb matrix scenarios/concurrency_ramp.yaml \
+  --models google/gemini-3.5-flash,google/gemini-2.5-flash,anthropic/claude-haiku-4-5 \
+  --yes
+```
+
+Before any model runs, `afb matrix`:
+
+1. **Pre-flights API keys** — refuses to start if any required key is missing
+2. **Lists models + rates** and asks `Proceed? [Y/n]` (`--yes` skips)
+3. **Runs sequentially** (rate-limit safe) with a per-model spinner
+
+After the runs:
+
+```
+Model                       OK         Avg    p95    Cost      $/OK
+-----------------------------------------------------------------------
+google/gemini-3.5-flash     8/8 100%   412    678    $0.052    $0.0065
+google/gemini-2.5-flash     8/8 100%   287    489    $0.018    $0.0023
+anthropic/claude-haiku-4-5  8/8 100%   523    812    $0.124    $0.0155
+
+Matrix written to: runs/matrix_xxxxx/matrix.md
+```
+
+`matrix.md` includes a per-level throughput table for sweep scenarios, so
+you can see directly which model hits its scaling cliff first.
 
 ## MVP scenarios (v0.1)
 
