@@ -1,10 +1,12 @@
 import type { RunMetrics } from '../metrics/types.js';
 import { formatUsd } from '../utils/format.js';
+import { verdictForRun } from './verdict.js';
 
 export function renderMarkdown(m: RunMetrics): string {
   const lines: string[] = [];
   lines.push(`# Agent First Bench — Run Report`);
   lines.push('');
+  lines.push(verdictForRun(m));
   lines.push(`- **Run id**: \`${m.run_id}\``);
   lines.push(`- **Scenario**: ${m.scenario_name} (${m.scenario_kind})`);
   lines.push(`- **Provider/Model/Runtime**: ${m.provider} / ${m.model} / ${m.runtime}`);

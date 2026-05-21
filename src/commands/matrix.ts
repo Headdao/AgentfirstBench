@@ -11,6 +11,7 @@ import { formatUsd, formatTokens } from '../utils/format.js';
 import { listKnownModels, lookupPricing } from '../pricing/table.js';
 import type { RunMetrics } from '../metrics/types.js';
 import { renderMatrixMarkdown, renderMatrixStdout, type MatrixRow } from '../reports/matrix.js';
+import { verdictForMatrix } from '../reports/verdict.js';
 
 interface MatrixOptions {
   out: string;
@@ -147,6 +148,7 @@ export async function matrixCommand(scenarioPath: string, opts: MatrixOptions): 
   console.log('');
   console.log(renderMatrixStdout(rows));
   console.log('');
+  console.log(verdictForMatrix(rows));
   console.log(`Matrix written to: ${matrixMdPath}`);
 }
 

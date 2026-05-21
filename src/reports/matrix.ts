@@ -1,6 +1,7 @@
 import type { RunMetrics } from '../metrics/types.js';
 import { summarizeSweep } from '../metrics/sweep.js';
 import { formatUsd } from '../utils/format.js';
+import { verdictForMatrix } from './verdict.js';
 
 export interface MatrixRow {
   label: string; // provider/model
@@ -13,6 +14,8 @@ export function renderMatrixMarkdown(scenarioName: string, rows: MatrixRow[]): s
   lines.push(`# Matrix — ${scenarioName} across ${rows.length} models`);
   lines.push('');
   if (rows.length === 0) return lines.join('\n') + '\n';
+
+  lines.push(verdictForMatrix(rows));
 
   const hasSweep = rows.some((r) => r.metrics.per_level && r.metrics.per_level.length > 1);
 
