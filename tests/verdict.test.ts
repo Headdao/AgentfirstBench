@@ -54,10 +54,11 @@ describe('verdictForRun — reliability', () => {
     const v = verdictForRun(metrics({ success_rate: 0.97, workers_failed: 3, workers_succeeded: 97, workers_total: 100 }));
     expect(v).toMatch(/⚠️ 97.0% adapter success/);
   });
-  it('emits ✗ for <95% success', () => {
+  it('emits ✗ for <95% success and lists it in the Avoid section', () => {
     const v = verdictForRun(metrics({ success_rate: 0.5, workers_failed: 5, workers_succeeded: 5, workers_total: 10 }));
     expect(v).toMatch(/✗ 50.0% adapter success/);
-    expect(v).toMatch(/investigate/);
+    expect(v).toMatch(/Avoid/);
+    expect(v).toMatch(/Reliability only 50.0%/);
   });
 });
 
@@ -74,7 +75,7 @@ describe('verdictForRun — consistency (p95/p50)', () => {
   it('✗ when ratio > 3×', () => {
     const v = verdictForRun(metrics({ p50_latency_ms: 100, p95_latency_ms: 600 }));
     expect(v).toMatch(/Consistency.*✗/);
-    expect(v).toMatch(/long-tail/);
+    expect(v).toMatch(/long tail/);
   });
 });
 
@@ -92,7 +93,7 @@ describe('verdictForRun — scaling (sweep)', () => {
     expect(v).toMatch(/still scaling/);
   });
 
-  it('flags degrading scaling with ✗', () => {
+  it('routes degrading scaling to Operating limits, not Avoid', () => {
     const v = verdictForRun(
       metrics({
         per_level: [
@@ -101,8 +102,10 @@ describe('verdictForRun — scaling (sweep)', () => {
         ],
       }),
     );
-    expect(v).toMatch(/Scaling.*✗/);
-    expect(v).toMatch(/overload/);
+    expect(v).toMatch(/Operating limits/);
+    expect(v).toMatch(/Cap concurrency at \*\*N=1\*\*/);
+    // Negative inflection alone shouldn't trigger the Avoid section
+    expect(v).not.toMatch(/真的別用/);
   });
 
   it('reports saturation with positive-but-tiny gain', () => {
@@ -139,17 +142,17 @@ describe('verdictForMatrix', () => {
     expect(v).toMatch(/Fastest avg.*fast\/y/);
   });
 
-  it('flags models with <95% success in the Avoid section', () => {
+  it('flags models with <95% reliability in the Avoid section', () => {
     const v = verdictForMatrix([
       row('good/a'),
       row('bad/b', { success_rate: 0.5, workers_succeeded: 5, workers_failed: 5 }),
     ]);
-    expect(v).toMatch(/Avoid/);
+    expect(v).toMatch(/真的別用 \/ Avoid/);
     expect(v).toMatch(/bad\/b/);
-    expect(v).toMatch(/50.0% success/);
+    expect(v).toMatch(/50.0% reliability/);
   });
 
-  it('flags models with degrading throughput in the Avoid section', () => {
+  it('routes degrading throughput to Operating limits, not Avoid', () => {
     const v = verdictForMatrix([
       row('a/scaling', {
         per_level: [
@@ -164,9 +167,10 @@ describe('verdictForMatrix', () => {
         ],
       }),
     ]);
-    expect(v).toMatch(/Avoid/);
-    expect(v).toMatch(/b\/overload/);
-    expect(v).toMatch(/throughput dropped/);
+    expect(v).toMatch(/Operating limits/);
+    expect(v).toMatch(/b\/overload.*cap concurrency at \*\*N=1\*\*/);
+    // Negative inflection alone (without reliability/accuracy issue) shouldn't appear in Avoid
+    expect(v).not.toMatch(/真的別用 \/ Avoid[\s\S]*b\/overload/);
   });
 
   it('handles single-model matrix gracefully', () => {
@@ -179,7 +183,24 @@ describe('verdictForMatrix', () => {
       row('bad1', { success_rate: 0.5, workers_succeeded: 5, workers_failed: 5 }),
       row('bad2', { success_rate: 0.3, workers_succeeded: 3, workers_failed: 7 }),
     ]);
-    expect(v).toMatch(/No model.*was reliable/);
+    expect(v).toMatch(/No model in this matrix was reliable/);
+  });
+
+  it('emits bilingual narrative + bottom line for run', () => {
+    const v = verdictForRun(metrics());
+    expect(v).toMatch(/## 重點/);
+    expect(v).toMatch(/## Summary/);
+    expect(v).toMatch(/## 結論/);
+    expect(v).toMatch(/## Bottom line/);
+    expect(v).toMatch(/### 技術指標 \/ Metrics/);
+  });
+
+  it('emits bilingual narrative + bottom line for matrix', () => {
+    const v = verdictForMatrix([row('a/x'), row('b/y')]);
+    expect(v).toMatch(/## 重點/);
+    expect(v).toMatch(/## Summary/);
+    expect(v).toMatch(/## 結論/);
+    expect(v).toMatch(/## Bottom line/);
   });
 
   it('flags ties on accuracy explicitly when all models tie', () => {
