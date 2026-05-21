@@ -12,6 +12,22 @@ import { lookupPricing, estimateUsd } from '../pricing/table.js';
 import { successEvaluator } from '../evaluators/types.js';
 import { mulberry32, randomSeed } from '../utils/prng.js';
 
+export interface ProgressInfo {
+  /** Total task executions planned across all concurrency levels. */
+  total: number;
+  /** Cumulative successful task completions so far. */
+  completed: number;
+  /** Cumulative failed task completions so far. */
+  failed: number;
+  /** Workers currently in flight. */
+  active: number;
+  /** Current concurrency level (for sweep scenarios), else the configured max. */
+  currentLevel: number;
+  /** 1-indexed position of the current level in the sweep, e.g. "3/6". */
+  currentLevelIndex: number;
+  totalLevels: number;
+}
+
 export interface RunnerOptions {
   scenario: LoadedScenario;
   adapter: AgentRuntimeAdapter;
@@ -21,6 +37,8 @@ export interface RunnerOptions {
   runtime: string;
   maxConcurrency: number;
   apply: boolean;
+  /** Called after each worker completes/fails so the CLI can render progress. */
+  onProgress?: (info: ProgressInfo) => void;
 }
 
 export interface RunnerResult {
@@ -76,7 +94,27 @@ export async function runScenario(opts: RunnerOptions): Promise<RunnerResult> {
   const perLevel: NonNullable<RunMetrics['per_level']> = [];
   let workersRetried = 0;
 
-  for (const concurrency of levels) {
+  // Progress tracking — handed to the CLI via opts.onProgress so it can
+  // render a spinner. The runner itself doesn't render anything.
+  const totalPlanned = opts.scenario.tasks.length * levels.length;
+  const progress = {
+    total: totalPlanned,
+    completed: 0,
+    failed: 0,
+    active: 0,
+    currentLevel: levels[0],
+    currentLevelIndex: 1,
+    totalLevels: levels.length,
+  };
+  const emitProgress = (): void => {
+    opts.onProgress?.({ ...progress });
+  };
+  emitProgress();
+
+  for (let levelIdx = 0; levelIdx < levels.length; levelIdx++) {
+    const concurrency = levels[levelIdx];
+    progress.currentLevel = concurrency;
+    progress.currentLevelIndex = levelIdx + 1;
     const levelStart = Date.now();
     const limit = pLimit(concurrency);
     const levelResults = await Promise.all(
@@ -91,6 +129,8 @@ export async function runScenario(opts: RunnerOptions): Promise<RunnerResult> {
           if (shouldInject) injectedIds.push(task.id);
 
           log.emit('worker_scheduled', { task_id: task.id, concurrency });
+          progress.active += 1;
+          emitProgress();
 
           const maxAttempts = (opts.scenario.retries ?? 0) + 1;
           let last: AgentTaskResult | undefined;
@@ -164,6 +204,10 @@ export async function runScenario(opts: RunnerOptions): Promise<RunnerResult> {
             }
           }
 
+          progress.active -= 1;
+          if (last!.ok) progress.completed += 1;
+          else progress.failed += 1;
+          emitProgress();
           return last!;
         }),
       ),

@@ -4,6 +4,7 @@ import { loadConfig } from '../config/loader.js';
 import { runScenario } from '../runners/runner.js';
 import { getAdapter, listAdapters } from '../adapters/registry.js';
 import { formatUsd, formatTokens } from '../utils/format.js';
+import { Spinner } from '../utils/spinner.js';
 
 interface RunOptions {
   out: string;
@@ -62,16 +63,34 @@ export async function runCommand(scenarioPath: string, opts: RunOptions): Promis
     process.exit(1);
   }
 
-  const result = await runScenario({
-    scenario: { ...scenario, temperature },
-    adapter,
-    outDir: resolve(process.cwd(), opts.out),
-    provider,
-    model,
-    runtime,
-    maxConcurrency,
-    apply: opts.apply ?? false,
-  });
+  const spinner = new Spinner();
+  spinner.start(`Starting ${scenario.name} on ${provider}/${model}@${runtime}…`);
+
+  let result;
+  try {
+    result = await runScenario({
+      scenario: { ...scenario, temperature },
+      adapter,
+      outDir: resolve(process.cwd(), opts.out),
+      provider,
+      model,
+      runtime,
+      maxConcurrency,
+      apply: opts.apply ?? false,
+      onProgress: (p) => {
+        const levelInfo =
+          p.totalLevels > 1 ? ` · level ${p.currentLevelIndex}/${p.totalLevels} (N=${p.currentLevel})` : '';
+        const failedInfo = p.failed > 0 ? `, ${p.failed} failed` : '';
+        spinner.update(
+          `${p.completed + p.failed}/${p.total} done · ${p.active} in flight${levelInfo}${failedInfo}`,
+        );
+      },
+    });
+  } catch (err) {
+    spinner.stop();
+    throw err;
+  }
+  spinner.stop();
 
   console.log(`Run complete: ${result.runDir}`);
   console.log(`Workers: ${result.workersCompleted}/${result.workersTotal} succeeded`);
