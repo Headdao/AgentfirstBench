@@ -71,13 +71,13 @@ afb run scenarios/research_synthesis.yaml --runtime raw-google
 ⠹ 32/96 done · 8 in flight · level 4/6 (N=8)
 ```
 
-跑完顯示：
+跑完輸出長這樣（數字看你的 scenario / model / API 當天狀態）：
 
 ```
-Run complete: runs/run_xxxxx
-Workers: 96/96 succeeded
-Cost:    $0.0048 (google/gemini-3.5-flash, 4.0k in + 5.8k out)
-Report:  runs/run_xxxxx/report.md
+Run complete: runs/run_<id>
+Workers: <N>/<N> succeeded
+Cost:    $<X> (<provider>/<model>, <tokens> in + <tokens> out)
+Report:  runs/run_<id>/report.md
 ```
 
 `report.md` 同時自動生好。
@@ -144,18 +144,22 @@ afb matrix scenarios/orchestration_research.yaml \
 
 ### Matrix 輸出
 
+格式長這樣（實際數字以你跑出來為準，**不要把下面當定論**）：
+
 ```
-Model                       OK         Avg    p95    Cost        $/OK
+Model                  OK          Avg     p95     Cost         $/OK
 -----------------------------------------------------------------------
-anthropic/claude-haiku-4-5  5/5 100%   985    1446   $0.0016     $0.00033
-google/gemini-3.5-flash     5/5 100%   3045   5175   $0.0028     $0.00056
-openai/gpt-5.4-mini         5/5 100%   5052   18085  $0.0009     $0.00019
+<provider>/<model-A>   <N>/<N> <%>  <ms>    <ms>    $<X>         $<X>
+<provider>/<model-B>   <N>/<N> <%>  <ms>    <ms>    $<X>         $<X>
+<provider>/<model-C>   <N>/<N> <%>  <ms>    <ms>    $<X>         $<X>
 
 ## 結論
-想最便宜選 `openai/gpt-5.4-mini`，想最快選 `anthropic/claude-haiku-4-5`。
+想最便宜選 `<model-?>`，想最快選 `<model-?>`。
 ```
 
 跑前自動檢查 API key、列出費率、要求確認（`--yes` 跳過）。
+
+哪個 model 勝出**完全取決於你選的 scenario** — 簡單格式任務、長文檢索、推理題、orchestration 各有不同贏家。Benchmark 工具不替你決定，它替你量。
 
 ---
 

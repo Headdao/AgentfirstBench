@@ -71,13 +71,13 @@ A spinner shows live progress:
 ⠹ 32/96 done · 8 in flight · level 4/6 (N=8)
 ```
 
-When done:
+When done you'll see something shaped like (your numbers will vary):
 
 ```
-Run complete: runs/run_xxxxx
-Workers: 96/96 succeeded
-Cost:    $0.0048 (google/gemini-3.5-flash, 4.0k in + 5.8k out)
-Report:  runs/run_xxxxx/report.md
+Run complete: runs/run_<id>
+Workers: <N>/<N> succeeded
+Cost:    $<X> (<provider>/<model>, <tokens> in + <tokens> out)
+Report:  runs/run_<id>/report.md
 ```
 
 `report.md` is generated automatically.
@@ -149,20 +149,27 @@ afb matrix scenarios/orchestration_research.yaml \
 First row uses the default `raw-anthropic`; second uses `claude-code`.
 The report auto-adds a `Class` column to label them.
 
-### Output
+### Output shape
+
+Format only — actual numbers depend on the scenario, models, and the
+provider's mood on the day. **Don't treat the example below as advice.**
 
 ```
-Model                       OK         Avg    p95    Cost        $/OK
+Model                  OK          Avg     p95     Cost         $/OK
 -----------------------------------------------------------------------
-anthropic/claude-haiku-4-5  5/5 100%   985    1446   $0.0016     $0.00033
-google/gemini-3.5-flash     5/5 100%   3045   5175   $0.0028     $0.00056
-openai/gpt-5.4-mini         5/5 100%   5052   18085  $0.0009     $0.00019
+<provider>/<model-A>   <N>/<N> <%>  <ms>    <ms>    $<X>         $<X>
+<provider>/<model-B>   <N>/<N> <%>  <ms>    <ms>    $<X>         $<X>
+<provider>/<model-C>   <N>/<N> <%>  <ms>    <ms>    $<X>         $<X>
 
 ## Bottom line
-Pick `openai/gpt-5.4-mini` for cost, `anthropic/claude-haiku-4-5` for speed.
+Pick `<model-?>` for cost, `<model-?>` for speed.
 ```
 
 Pre-flights API keys, lists rates, asks for confirmation (`--yes` skips).
+
+Which model "wins" depends entirely on which scenario you ran — JSON
+extraction, long-context recall, reasoning, orchestration all have
+different winners. The benchmark doesn't pick for you; it measures.
 
 ---
 
