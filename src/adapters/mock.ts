@@ -6,6 +6,7 @@ import type { AgentRuntimeAdapter, AgentTaskInput, AgentTaskResult } from './typ
  */
 export const mockAdapter: AgentRuntimeAdapter = {
   name: 'mock',
+  runtimeClass: 'raw_model_baseline',
   async runTask(input: AgentTaskInput): Promise<AgentTaskResult> {
     const start = Date.now();
     // Simulate work: 50–200ms based on the prompt hash so it's deterministic per input.

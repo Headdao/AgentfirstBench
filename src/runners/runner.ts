@@ -299,6 +299,7 @@ export async function runScenario(opts: RunnerOptions): Promise<RunnerResult> {
     provider: opts.provider,
     model: opts.model,
     runtime: opts.runtime,
+    runtime_class: opts.adapter.runtimeClass,
     scenario_hash: opts.scenario.scenario_hash,
     dataset_hash: opts.scenario.dataset_hash,
     scenario_name: opts.scenario.name,

@@ -40,6 +40,7 @@ import type { AgentRuntimeAdapter, AgentTaskInput, AgentTaskResult } from './typ
  */
 export const customHttpAdapter: AgentRuntimeAdapter = {
   name: 'custom-http',
+  runtimeClass: 'external',
   async runTask(input: AgentTaskInput): Promise<AgentTaskResult> {
     const start = Date.now();
     const url = process.env.AFB_CUSTOM_HTTP_URL;

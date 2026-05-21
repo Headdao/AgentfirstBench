@@ -122,6 +122,19 @@ export function verdictForMatrix(rows: MatrixRow[]): string {
   if (rows.length === 0) return '';
   const lines: string[] = ['## Verdict', ''];
 
+  // Cross-class warning: per the v0.2 spec addendum, comparing a raw-API
+  // baseline to an agent runtime side-by-side is honest only with a label.
+  // A raw call has no coordination tax; the agent's $/success includes it.
+  const classes = new Set(rows.map((r) => r.metrics.runtime_class));
+  if (classes.size > 1) {
+    lines.push(
+      `> ⚠️ Mixed runtime classes (${[...classes].join(', ')}). ` +
+        `Raw-API rows have no coordination tax; agent-runtime rows do. ` +
+        `Read $/success and latency with that asymmetry in mind.`,
+    );
+    lines.push('');
+  }
+
   // "Reliable" = adapter usually returns ok AND, when a real evaluator
   // is in use, accuracy is at least 70%. Picking the cheapest model that
   // gets the wrong answer cheaply is the wrong recommendation.

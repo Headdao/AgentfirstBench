@@ -6,6 +6,8 @@ export interface RunMetrics {
   provider: string;
   model: string;
   runtime: string;
+  /** §addendum: lets reports distinguish raw-API baselines from agent runtimes. */
+  runtime_class: 'raw_model_baseline' | 'agent_runtime' | 'coordinator_enabled' | 'external';
   scenario_hash: string;
   dataset_hash: string;
   scenario_name: string;

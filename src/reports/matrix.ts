@@ -19,9 +19,12 @@ export function renderMatrixMarkdown(scenarioName: string, rows: MatrixRow[]): s
 
   const hasSweep = rows.some((r) => r.metrics.per_level && r.metrics.per_level.length > 1);
   const hasAccuracy = rows.some((r) => r.metrics.evaluator.name !== 'success');
+  const classes = new Set(rows.map((r) => r.metrics.runtime_class));
+  const showClassCol = classes.size > 1;
 
   // Headline table
-  const headers = ['Model', 'OK'];
+  const headers = ['Model', 'Class', 'OK'];
+  if (!showClassCol) headers.splice(1, 1); // drop Class column when all the same
   if (hasAccuracy) headers.push('Accuracy');
   headers.push('Avg ms', 'p95 ms', 'Total $', '$/success');
   if (hasSweep) headers.push('Peak thru/s', 'Inflection');
@@ -32,10 +35,9 @@ export function renderMatrixMarkdown(scenarioName: string, rows: MatrixRow[]): s
     const m = r.metrics;
     const successPct = `${(m.success_rate * 100).toFixed(1)}%`;
     const costPerOk = m.workers_succeeded > 0 ? m.total_cost_usd / m.workers_succeeded : 0;
-    const row: string[] = [
-      `\`${r.label}\``,
-      `${m.workers_succeeded}/${m.workers_total} (${successPct})`,
-    ];
+    const row: string[] = [`\`${r.label}\``];
+    if (showClassCol) row.push(`\`${m.runtime_class}\``);
+    row.push(`${m.workers_succeeded}/${m.workers_total} (${successPct})`);
     if (hasAccuracy) {
       row.push(
         m.evaluator.name === 'success'
@@ -93,9 +95,17 @@ export function renderMatrixMarkdown(scenarioName: string, rows: MatrixRow[]): s
 export function renderMatrixStdout(rows: MatrixRow[]): string {
   if (rows.length === 0) return '(no rows)';
   const hasAccuracy = rows.some((r) => r.metrics.evaluator.name !== 'success');
+  const classes = new Set(rows.map((r) => r.metrics.runtime_class));
+  const showClassCol = classes.size > 1;
 
-  const header = ['Model', 'OK'];
-  const widths = [38, 11];
+  const header = ['Model'];
+  const widths = [42];
+  if (showClassCol) {
+    header.push('Class');
+    widths.push(22);
+  }
+  header.push('OK');
+  widths.push(11);
   if (hasAccuracy) {
     header.push('Accuracy');
     widths.push(10);
@@ -110,7 +120,9 @@ export function renderMatrixStdout(rows: MatrixRow[]): string {
     const m = r.metrics;
     const successPct = `${(m.success_rate * 100).toFixed(0)}%`;
     const costPerOk = m.workers_succeeded > 0 ? m.total_cost_usd / m.workers_succeeded : 0;
-    const cells: string[] = [r.label, `${m.workers_succeeded}/${m.workers_total} ${successPct}`];
+    const cells: string[] = [r.label];
+    if (showClassCol) cells.push(m.runtime_class);
+    cells.push(`${m.workers_succeeded}/${m.workers_total} ${successPct}`);
     if (hasAccuracy) {
       cells.push(
         m.evaluator.name === 'success' ? '—' : `${(m.eval_pass_rate * 100).toFixed(0)}%`,

@@ -64,7 +64,10 @@ export async function matrixCommand(scenarioPath: string, opts: MatrixOptions): 
   for (const p of picked) {
     const pricing = lookupPricing(p.provider, p.model);
     const rate = pricing ? `${formatUsd(pricing.input_per_mtok)}/${formatUsd(pricing.output_per_mtok)} per Mtok` : 'no pricing';
-    console.log(`  ${p.provider}/${p.model}  [${rate}]`);
+    const runtimeNote = p.runtimeOverride
+      ? `  via ${p.runtimeOverride}`
+      : `  via ${PROVIDER_TO_RUNTIME[p.provider] ?? '(no default)'}`;
+    console.log(`  ${p.provider}/${p.model}${runtimeNote}  [${rate}]`);
   }
 
   if (!opts.yes) {
@@ -88,14 +91,20 @@ export async function matrixCommand(scenarioPath: string, opts: MatrixOptions): 
   const rows: MatrixRow[] = [];
   for (let i = 0; i < picked.length; i++) {
     const p = picked[i];
-    const runtime = PROVIDER_TO_RUNTIME[p.provider];
+    const runtime = p.runtimeOverride ?? PROVIDER_TO_RUNTIME[p.provider];
+    if (!runtime) {
+      console.error(`No runtime mapped for provider '${p.provider}'; pass an explicit @runtime suffix`);
+      continue;
+    }
     const adapter = getAdapter(runtime);
     if (!adapter) {
       console.error(`No adapter registered for runtime ${runtime} (provider ${p.provider})`);
       continue;
     }
 
-    const label = `${p.provider}/${p.model}`;
+    const label = p.runtimeOverride
+      ? `${p.provider}/${p.model}@${runtime}`
+      : `${p.provider}/${p.model}`;
     const spinner = new Spinner();
     spinner.start(`[${i + 1}/${picked.length}] ${label}…`);
 
@@ -152,20 +161,49 @@ export async function matrixCommand(scenarioPath: string, opts: MatrixOptions): 
   console.log(`Matrix written to: ${matrixMdPath}`);
 }
 
-interface PickedModel { provider: string; model: string; key: string }
+interface PickedModel {
+  provider: string;
+  model: string;
+  /** Explicit `@runtime` suffix, or undefined → inferred from provider. */
+  runtimeOverride?: string;
+  /** Display key including @runtime if any (used as the matrix row label). */
+  key: string;
+}
 
+/**
+ * Parses entries like:
+ *   anthropic/claude-sonnet-4-6                  → infer runtime from provider
+ *   anthropic/claude-sonnet-4-6@raw-anthropic    → explicit
+ *   anthropic/claude-sonnet-4-6@claude-code      → explicit, different runtime
+ */
 function parseModelList(raw: string): PickedModel[] {
   return raw
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean)
-    .map((key) => {
-      const slash = key.indexOf('/');
+    .map((entry) => {
+      const at = entry.indexOf('@');
+      const head = at >= 0 ? entry.slice(0, at) : entry;
+      const runtimeOverride = at >= 0 ? entry.slice(at + 1).trim() : undefined;
+      const slash = head.indexOf('/');
       if (slash < 1) {
-        console.error(`Invalid model id: ${JSON.stringify(key)} (expected "provider/model")`);
+        console.error(
+          `Invalid model id: ${JSON.stringify(entry)} (expected "provider/model" or "provider/model@runtime")`,
+        );
         process.exit(2);
       }
-      return { provider: key.slice(0, slash), model: key.slice(slash + 1), key };
+      if (at >= 0 && (!runtimeOverride || runtimeOverride.length === 0)) {
+        console.error(
+          `Invalid model id: ${JSON.stringify(entry)} (empty runtime after "@")`,
+        );
+        process.exit(2);
+      }
+      return {
+        provider: head.slice(0, slash),
+        model: head.slice(slash + 1),
+        runtimeOverride,
+        key: entry,
+      };
     });
 }
 

@@ -20,6 +20,7 @@ const DEFAULT_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 
 export const rawGoogleAdapter: AgentRuntimeAdapter = {
   name: 'raw-google',
+  runtimeClass: 'raw_model_baseline',
   async runTask(input: AgentTaskInput): Promise<AgentTaskResult> {
     const start = Date.now();
     const apiKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY;

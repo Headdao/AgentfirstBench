@@ -16,6 +16,7 @@ import type {
  */
 export const rawAnthropicAdapter: AgentRuntimeAdapter = {
   name: 'raw-anthropic',
+  runtimeClass: 'raw_model_baseline',
   async runTask(input: AgentTaskInput): Promise<AgentTaskResult> {
     const start = Date.now();
     const apiKey = process.env.ANTHROPIC_API_KEY;

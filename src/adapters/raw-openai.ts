@@ -16,6 +16,7 @@ import type {
  */
 export const rawOpenAIAdapter: AgentRuntimeAdapter = {
   name: 'raw-openai',
+  runtimeClass: 'raw_model_baseline',
   async runTask(input: AgentTaskInput): Promise<AgentTaskResult> {
     const start = Date.now();
     const apiKey = process.env.OPENAI_API_KEY;

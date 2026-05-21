@@ -28,6 +28,7 @@ import type {
  */
 export const mockCoordinatorAdapter: AgentRuntimeAdapter = {
   name: 'mock-coordinator',
+  runtimeClass: 'coordinator_enabled',
   async runTask(input: AgentTaskInput): Promise<AgentTaskResult> {
     const start = Date.now();
     const promptLower = input.prompt.toLowerCase();

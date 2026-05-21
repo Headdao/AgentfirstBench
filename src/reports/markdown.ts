@@ -9,7 +9,7 @@ export function renderMarkdown(m: RunMetrics): string {
   lines.push(verdictForRun(m));
   lines.push(`- **Run id**: \`${m.run_id}\``);
   lines.push(`- **Scenario**: ${m.scenario_name} (${m.scenario_kind})`);
-  lines.push(`- **Provider/Model/Runtime**: ${m.provider} / ${m.model} / ${m.runtime}`);
+  lines.push(`- **Provider/Model/Runtime**: ${m.provider} / ${m.model} / ${m.runtime} (\`${m.runtime_class}\`)`);
   lines.push(`- **Started**: ${m.started_at}`);
   lines.push(`- **Completed**: ${m.completed_at}`);
   lines.push(`- **afb**: ${m.afb_version} · node ${m.node_version} · ${m.os}`);

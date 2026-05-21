@@ -5,6 +5,7 @@ import { rawAnthropicAdapter } from './raw-anthropic.js';
 import { rawOpenAIAdapter } from './raw-openai.js';
 import { rawGoogleAdapter } from './raw-google.js';
 import { customHttpAdapter } from './custom-http.js';
+import { claudeCodeAdapter } from './claude-code.js';
 
 const adapters = new Map<string, AgentRuntimeAdapter>();
 
@@ -27,3 +28,4 @@ registerAdapter(rawAnthropicAdapter);
 registerAdapter(rawOpenAIAdapter);
 registerAdapter(rawGoogleAdapter);
 registerAdapter(customHttpAdapter);
+registerAdapter(claudeCodeAdapter);

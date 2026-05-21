@@ -69,9 +69,28 @@ export interface AgentTaskResult {
   latencyMs: number;
 }
 
+/**
+ * What category of runtime is this adapter? Used by reports and matrix
+ * verdicts so cross-class comparisons are labeled honestly (a raw API
+ * call has no coordination tax, so comparing its $/success to an agent
+ * runtime's needs context).
+ *
+ *   raw_model_baseline  — direct API call to the model provider
+ *   agent_runtime       — wraps an agent CLI/SDK (may use tools, session)
+ *   coordinator_enabled — runtime can itself plan/dispatch/merge
+ *   external            — user-provided HTTP endpoint (we can't classify)
+ */
+export type RuntimeClass =
+  | 'raw_model_baseline'
+  | 'agent_runtime'
+  | 'coordinator_enabled'
+  | 'external';
+
 export interface AgentRuntimeAdapter {
   /** Stable identifier used in scenario YAML and CLI flags (e.g., "raw-anthropic"). */
   readonly name: string;
+  /** Category for report labeling and matrix cross-class warnings. */
+  readonly runtimeClass: RuntimeClass;
   runTask(input: AgentTaskInput): Promise<AgentTaskResult>;
   estimateCost?(usage: TokenUsage): CostEstimate;
   getRateLimitStatus?(): Promise<RateLimitStatus>;
