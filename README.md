@@ -154,6 +154,88 @@ AFB_CUSTOM_HTTP_URL=http://localhost:8787 \
   afb run scenarios/concurrency_ramp.yaml --runtime custom-http
 ```
 
+## Reproducibility
+
+Every run records enough to reproduce it. The relevant fields in
+`metrics.json`:
+
+```json
+{
+  "scenario_hash":            "5c19b5fae7fc…",
+  "dataset_hash":             "fa5c225ada1b…",
+  "prompt_template_version":  "inline/v1",
+  "scoring_profile_version":  "default/v1",
+  "evaluator":                { "name": "success", "version": "1.0.0" },
+  "temperature":              0.2,
+  "network_policy":           { "mode": "disabled" },
+  "seed":                     2718281828,
+  "injected_failure_task_ids": ["f-03", "f-07", "f-11"]
+}
+```
+
+### Seed
+
+Anything random the runner does — currently just `failure_containment`'s
+failure injection — goes through a seeded PRNG (mulberry32). The seed
+is optional in the scenario file; if absent, the runner generates a
+32-bit seed and **always records the effective seed** in `metrics.json`
+so the run can be replayed.
+
+```yaml
+# scenarios/my_failure.yaml
+name: my_failure
+kind: failure_containment
+inject_failure_rate: 0.25
+seed: 42        # optional — omit to auto-generate (still recorded)
+```
+
+To **replay** a previous run's exact failure set, copy `seed` out of
+that run's `metrics.json` and put it in the scenario file:
+
+```bash
+# original run
+afb run scenarios/my_failure.yaml --runtime mock --out runs
+# → metrics.json contains "seed": 2718281828
+
+# add `seed: 2718281828` to the scenario, then re-run:
+afb run scenarios/my_failure.yaml --runtime mock --out runs
+# → same injected_failure_task_ids as the original
+```
+
+### `injected_failure_task_ids`
+
+For `failure_containment` runs, this lists every task ID that had a
+failure injected on its first attempt. Derivable from the seed but
+recorded for fast diffing — to confirm two runs exercised the same
+failure modes, diff the arrays directly:
+
+```bash
+jq '.injected_failure_task_ids' runs/run_A/metrics.json
+jq '.injected_failure_task_ids' runs/run_B/metrics.json
+```
+
+### What changes which hash
+
+| Change | `dataset_hash` | `scenario_hash` |
+| --- | :---: | :---: |
+| Task `prompt` / `payload` / `expect` edit | ✓ | ✓ |
+| Task `id` rename | ✓ | ✓ |
+| Reorder tasks (same `id`s) | — | ✓ |
+| Edit `max_concurrency` / `temperature` / `retries` | — | ✓ |
+| Edit a comment in the YAML | — | ✓ |
+
+Use `dataset_hash` when you want to ask "is this the **same data**,
+regardless of settings?". Use `scenario_hash` for "is this the **exact
+same file**?".
+
+A reproducible re-run requires: same `dataset_hash` + same `seed` +
+same `temperature` + same `prompt_template_version` +
+`scoring_profile_version` + `evaluator.version`. Provider non-determinism
+(server-side sampling, even at `temperature: 0`) is the remaining
+uncontrollable — that's why every adapter response is also written to
+`events.jsonl`, so a "did we get a different answer this time?" diff
+is always possible.
+
 ## Safety defaults
 
 Per spec §13. The table below distinguishes **enforced** (refuses to run if
