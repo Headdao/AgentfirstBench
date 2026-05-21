@@ -12,6 +12,7 @@ import { listKnownModels, lookupPricing } from '../pricing/table.js';
 import type { RunMetrics } from '../metrics/types.js';
 import { renderMatrixMarkdown, renderMatrixStdout, type MatrixRow } from '../reports/matrix.js';
 import { verdictForMatrix } from '../reports/verdict.js';
+import { renderMarkdown } from '../reports/markdown.js';
 
 interface MatrixOptions {
   out: string;
@@ -140,6 +141,10 @@ export async function matrixCommand(scenarioPath: string, opts: MatrixOptions): 
     spinner.stop(`✓ ${label} · ${result.workersCompleted}/${result.workersTotal} ok · ${formatUsd(result.totalCostUsd)} · ${tokens}`);
 
     const metrics = JSON.parse(await readFile(join(result.runDir, 'metrics.json'), 'utf8')) as RunMetrics;
+    // Mirror what `afb run` does: drop a per-model report.md alongside
+    // metrics.json so users can drill into one row of the matrix without
+    // re-running `afb report`.
+    await writeFile(join(result.runDir, 'report.md'), renderMarkdown(metrics), 'utf8');
     rows.push({ label, metrics });
   }
 
