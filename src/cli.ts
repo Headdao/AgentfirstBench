@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 import { cac } from 'cac';
+import { loadDotenv } from './utils/dotenv.js';
 import { initCommand } from './commands/init.js';
+
+// Load .env from cwd before any command runs so adapters see the keys.
+loadDotenv();
+
 import { doctorCommand } from './commands/doctor.js';
 import { runCommand } from './commands/run.js';
 import { compareCommand } from './commands/compare.js';
@@ -10,8 +15,9 @@ import { version } from './version.js';
 const cli = cac('afb');
 
 cli
-  .command('init [dir]', 'Scaffold a new Agent First Bench project')
+  .command('init [dir]', 'Scaffold a new Agent First Bench project (interactive)')
   .option('--force', 'Overwrite existing files')
+  .option('--yes', 'Skip prompts; use mock defaults (for CI / scripts)')
   .action(initCommand);
 
 cli

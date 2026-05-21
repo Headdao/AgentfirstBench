@@ -24,6 +24,20 @@ const BUILTIN_DEFAULTS = {
   temperature: 0.2,
 };
 
+/**
+ * When a user picks a `--runtime` but no `--provider`/`--model`, fill in
+ * sensible defaults so the command line stays short. Each runtime knows
+ * which provider it talks to and a reasonable starter model.
+ */
+const RUNTIME_DEFAULTS: Record<string, { provider: string; model: string }> = {
+  mock: { provider: 'mock', model: 'mock-model' },
+  'raw-anthropic': { provider: 'anthropic', model: 'claude-sonnet-4-6' },
+  'raw-openai': { provider: 'openai', model: 'gpt-5.4-mini' },
+  'raw-google': { provider: 'google', model: 'gemini-3.5-flash' },
+  // custom-http intentionally has no default — the user must say which
+  // provider/model their server is wrapping so pricing is meaningful.
+};
+
 function parsePositiveInt(raw: string | number, flag: string): number {
   const reject = (): never => {
     console.error(`Invalid value for ${flag}: ${JSON.stringify(raw)} (expected a positive integer)`);
@@ -46,10 +60,15 @@ export async function runCommand(scenarioPath: string, opts: RunOptions): Promis
   const scenario = await loadScenario(absScenario);
   const config = await loadConfig();
 
-  // Merge order: CLI flags > scenario > config > built-in defaults.
-  const provider = opts.provider ?? scenario.provider ?? config.provider ?? BUILTIN_DEFAULTS.provider;
-  const model = opts.model ?? scenario.model ?? config.model ?? BUILTIN_DEFAULTS.model;
+  // Merge order: CLI flags > scenario > config > runtime defaults > built-in defaults.
+  // Runtime defaults: if the user picked --runtime raw-google, infer
+  // provider=google and model=gemini-3.5-flash unless they overrode them.
   const runtime = opts.runtime ?? scenario.runtime ?? config.runtime ?? BUILTIN_DEFAULTS.runtime;
+  const rtDefaults = RUNTIME_DEFAULTS[runtime];
+  const provider =
+    opts.provider ?? scenario.provider ?? config.provider ?? rtDefaults?.provider ?? BUILTIN_DEFAULTS.provider;
+  const model =
+    opts.model ?? scenario.model ?? config.model ?? rtDefaults?.model ?? BUILTIN_DEFAULTS.model;
   const maxConcurrency =
     opts.maxConcurrency != null
       ? parsePositiveInt(opts.maxConcurrency, '--max-concurrency')

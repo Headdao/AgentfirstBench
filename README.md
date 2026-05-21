@@ -1,176 +1,204 @@
 # Agent First Bench
 
-An open-source CLI benchmark for the agent era.
+> [English version](./README.en.md)
 
-Traditional LLM benchmarks ask: **"Can the model answer the question?"**
+一個**為 AI agent 時代設計**的開源命令列 benchmark 工具。
 
-Agent First Bench asks: **"Can this model/runtime act as a reliable worker inside a parallel, tool-using workflow?"**
+傳統 LLM benchmark 問的是：**「這個 model 答得對嗎？」**
 
-It measures concurrency, throughput, reliability, coordination overhead, cost, failure containment, and human-review burden — not just answer quality.
+Agent First Bench 問的是：**「這個 model + runtime 組合，能不能當一個可靠的 worker，在平行、會用工具的工作流裡好好做事？」**
 
-## Why this exists
+它量的是 concurrency、throughput、reliability、coordination overhead、cost、failure containment、human review burden — 不只是答案品質。
 
-Don't try to out-rank SWE-bench, LMSYS, or Artificial Analysis on raw model quality. Carve a different category:
+---
+
+## 為什麼做這個
+
+不去跟 SWE-bench、LMSYS、Artificial Analysis 拼「model 排行榜」。切一個新分類：
 
 > **Agent runtime observability benchmark.**
 
-- Model intelligence alone isn't enough.
-- The next question is whether an agent runtime can scale work.
-- More workers ≠ better. What you actually want to know is **where marginal returns turn negative**.
+- Model 多聰明，不夠。
+- 下一個問題是 agent runtime 能不能規模化工作。
+- Worker 越多 ≠ 越好。真正要測的是 **邊際效益何時轉負**。
 
-## Install
+---
+
+## 快速上手（5 分鐘從零到跑）
+
+### 第一步：clone + 裝
 
 ```bash
-npm install -g agent-first-bench   # once published
-# or, from source:
-git clone <repo> && cd agent-first-bench
+git clone https://github.com/Headdao/AgentfirstBench.git
+cd AgentfirstBench
 npm install
 npm run build
 npm link
 ```
 
-## Quickstart
+`npm link` 之後就能在任何地方輸入 `afb`。
+
+### 第二步：互動式初始化
+
+新開一個資料夾（或就在現有的）：
 
 ```bash
-afb init my-bench && cd my-bench
+mkdir my-bench && cd my-bench
+afb init
+```
+
+會問你：
+
+```
+Pick a provider:
+  1. Google Gemini
+  2. Anthropic Claude
+  3. OpenAI
+  4. Mock (offline, no key needed — recommended for first try)
+
+Choice [1]:
+```
+
+如果選 Google / Anthropic / OpenAI，會接著問 API key（會自動幫你寫進 `.env`，並加進 `.gitignore`）。
+
+### 第三步：跑
+
+```bash
+afb run scenarios/research_synthesis.yaml --runtime raw-google
+```
+
+就這樣。沒寫 `--provider` 跟 `--model` 是因為 `--runtime raw-google` 已經預設用 `google` + `gemini-3.5-flash`。
+
+跑的時候會看到動態 spinner：
+
+```
+⠹ 32/96 done · 8 in flight · level 4/6 (N=8)
+```
+
+跑完顯示：
+
+```
+Run complete: runs/run_xxxxxxx
+Workers: 96/96 succeeded
+Cost:    $0.0048 (google/gemini-3.5-flash, 1.6k in + 258 out)
+```
+
+---
+
+## API Key 怎麼設
+
+afb 啟動時會自動讀當前目錄的 `.env`（已存在的環境變數不會被覆蓋）。三種方式：
+
+### 1. `.env` 檔（最推薦）
+
+`afb init` 會幫你建。手動建也行：
+
+```bash
+cat > .env <<'EOF'
+GOOGLE_API_KEY=AIza...
+ANTHROPIC_API_KEY=sk-ant-...
+OPENAI_API_KEY=sk-...
+EOF
+chmod 600 .env
+```
+
+`.env` 已在 `.gitignore` 裡，不會誤 push。
+
+### 2. 當下命令前綴（一次性）
+
+```bash
+GOOGLE_API_KEY=AIza... afb run scenarios/concurrency_ramp.yaml --runtime raw-google
+```
+
+### 3. shell session 內 export
+
+```bash
+export GOOGLE_API_KEY=AIza...
+afb run ...
+```
+
+驗證 key 有沒有讀到：
+
+```bash
 afb doctor
-afb run scenarios/concurrency_ramp.yaml --runtime mock
-afb report runs/run_xxxxxx
 ```
 
-The `mock` adapter is offline and deterministic — useful for kicking the tires
-without API keys. For real measurements, pick a provider:
+---
 
-```bash
-# Anthropic
-ANTHROPIC_API_KEY=… afb run scenarios/concurrency_ramp.yaml \
-  --runtime raw-anthropic --provider anthropic --model claude-sonnet-4-6
+## 三個 MVP 場景（v0.1）
 
-# OpenAI
-OPENAI_API_KEY=… afb run scenarios/concurrency_ramp.yaml \
-  --runtime raw-openai --provider openai --model gpt-5.4-mini
+| Scenario | 量什麼 | 用途 |
+|---|---|---|
+| `research_synthesis` | N 個 worker 平行寫摘要，一個 coordinator 彙整 | 看 throughput 跟 coordination overhead |
+| `concurrency_ramp` | 同一批 task，在 1/2/4/8/16/32 個 concurrency 下各跑一遍 | **找飽和點** — §18 的頭號 KPI |
+| `failure_containment` | 注入失敗，看 runtime 會不會被一個壞 worker 拖垮 | 隔離性測試 |
 
-# Google Gemini
-GOOGLE_API_KEY=… afb run scenarios/concurrency_ramp.yaml \
-  --runtime raw-google --provider google --model gemini-3.5-flash
+Coding scenarios（會改動檔案的）延後到 v0.2，因為涉及安全跟可重現性的複雜度。
+
+---
+
+## 支援的 runtime
+
+| Runtime | 說明 | API Key 環境變數 |
+|---|---|---|
+| `mock` | 離線、有確定性，不需要 key — 第一次跑用這個 | — |
+| `raw-anthropic` | Anthropic Messages API | `ANTHROPIC_API_KEY` |
+| `raw-openai` | OpenAI Chat Completions | `OPENAI_API_KEY` |
+| `raw-google` | Google Gemini generateContent | `GOOGLE_API_KEY` 或 `GEMINI_API_KEY` |
+| `custom-http` | 你自己的 server（POST/JSON 合約見下面） | `AFB_CUSTOM_HTTP_TOKEN`（選用） |
+
+`--runtime <名稱>` 會自動推 `--provider` 跟 `--model` 預設值。例如：
+
+| 你打的 | 自動填的 |
+|---|---|
+| `--runtime raw-google` | `--provider google --model gemini-3.5-flash` |
+| `--runtime raw-anthropic` | `--provider anthropic --model claude-sonnet-4-6` |
+| `--runtime raw-openai` | `--provider openai --model gpt-5.4-mini` |
+
+要換 model 就加 `--model xxx` 覆寫。
+
+---
+
+## 命令一覽
+
+| 命令 | 做什麼 |
+|---|---|
+| `afb init [dir]` | 互動式初始化（會問 provider 跟 API key） |
+| `afb doctor` | 檢查 Node 版本、adapter、API key |
+| `afb run <scenario>` | 跑場景，產出 `events.jsonl` + `metrics.json` |
+| `afb compare <a> <b>` | 並排比較兩次 run（含 sweep 對照） |
+| `afb report <runDir>` | 從 `metrics.json` 產生 `report.md` |
+
+---
+
+## Run 輸出結構
+
+```
+runs/run_xxxxxxx/
+  events.jsonl     # 事件日誌（每行一個 JSON）
+  metrics.json     # 聚合指標 + 可重現性 metadata
+  report.md        # afb report 產出的人類可讀報告
 ```
 
-## Commands
+---
 
-| Command | What it does |
-| --- | --- |
-| `afb init [dir]` | Scaffolds a new bench project with sample scenarios |
-| `afb doctor` | Checks Node version, adapters, and provider credentials |
-| `afb run <scenario>` | Runs a scenario, emits `events.jsonl` + `metrics.json` |
-| `afb compare <a> <b>` | Side-by-side metrics for two run directories |
-| `afb report <runDir>` | Renders `report.md` from `metrics.json` |
+## 價格
 
-## MVP scenarios (v0.1)
+`src/pricing/table.ts` 內建主要 model 的價格，每次 run 會把計算來源（`cost_source`）跟價格表日期（`pricing_as_of`）寫進 `metrics.json`。即使日後牌價變了，舊 run 的成本還能重現。
 
-- **`research_synthesis`** — N parallel workers summarize topics; a coordinator merges.
-- **`concurrency_ramp`** — Same task batch at increasing concurrency levels. Reveals where throughput plateaus.
-- **`failure_containment`** — Inject failures and observe whether one bad worker takes the swarm down.
+| Provider | Models（部分） |
+|---|---|
+| Anthropic | claude-opus-4-7, claude-sonnet-4-6, claude-haiku-4-5 |
+| Google | gemini-3.5-flash, gemini-2.5-flash, gemini-3.1-pro-preview |
+| OpenAI | gpt-5.5, gpt-5.4, gpt-5.4-mini, gpt-5.4-nano |
 
-Coding-swarm scenarios are deferred to v0.2 because they introduce safety and
-reproducibility complexity (see spec §15).
+⚠️ 牌價會變。對外引用前去原廠頁面再確認一次，過期就 PR 更新 `src/pricing/table.ts` 並 bump `as_of`。
 
-## Run output layout
+---
 
-```
-runs/run_xxxxxx/
-  events.jsonl     # event-sourced log (spec §11)
-  metrics.json     # aggregates + reproducibility metadata (spec §14)
-  report.md        # produced by `afb report`
-```
+## 可重現性
 
-## Pricing
-
-`afb` ships a central pricing table at `src/pricing/table.ts` covering the
-Anthropic and OpenAI models people are most likely to benchmark. Every run
-records the table date as `pricing_as_of` in `metrics.json` so historical
-comparisons remain reproducible even when list prices change.
-
-If a provider/model isn't in the table, `afb` falls back to the adapter's
-own `estimateCost()` (placeholder rates) and marks `cost_source: "adapter"`
-in `metrics.json`. If neither is available, `cost_source: "none"` and the
-cost line is omitted from `afb run` output.
-
-To add or correct a rate: edit `src/pricing/table.ts`, bump `as_of`, and
-open a PR with the source URL.
-
-## Adapter interface
-
-Add a runtime by implementing `AgentRuntimeAdapter` (see `src/adapters/types.ts`):
-
-```ts
-export interface AgentRuntimeAdapter {
-  name: string;
-  runTask(input: AgentTaskInput): Promise<AgentTaskResult>;
-  estimateCost?(usage: TokenUsage): CostEstimate;
-  getRateLimitStatus?(): Promise<RateLimitStatus>;
-}
-```
-
-Built-in: `mock`, `raw-anthropic`, `raw-openai`, `raw-google`, `custom-http`.
-Planned: `raw-openrouter`, `claude-code`, `codex`, `antigravity`, `openclaw`.
-
-### `custom-http` — benchmark your own runtime without writing TS
-
-`custom-http` POSTs each task to an HTTP endpoint of your choice. Point
-it at any service that implements the contract below — your own agent
-runtime, a wrapper around a managed agent, a fixture for testing.
-
-**Config**
-
-```bash
-export AFB_CUSTOM_HTTP_URL=http://localhost:8787
-export AFB_CUSTOM_HTTP_TOKEN=optional-bearer-token
-afb run scenarios/concurrency_ramp.yaml --runtime custom-http
-```
-
-**Request** (POST `application/json`)
-
-```json
-{
-  "task_id": "q-01",
-  "prompt": "...",
-  "model": "claude-sonnet-4-6",
-  "temperature": 0.2,
-  "timeout_ms": 30000,
-  "payload": { "...": "..." },
-  "network_policy": { "mode": "disabled" },
-  "run_dir": "/abs/path/to/runs/run_xxxx",
-  "apply": false
-}
-```
-
-**Response** (200, `application/json`)
-
-```json
-{
-  "ok": true,
-  "output": "model output here",
-  "usage": { "input_tokens": 123, "output_tokens": 45 },
-  "data": { "...": "optional structured payload" }
-}
-```
-
-Set `ok: false` and include `error: { type, message }` to report a task
-failure. Non-200 status codes are treated as failures with
-`error.type: "http_<status>"`.
-
-A 30-line reference server lives at `examples/echo-server.mjs`:
-
-```bash
-node examples/echo-server.mjs &
-AFB_CUSTOM_HTTP_URL=http://localhost:8787 \
-  afb run scenarios/concurrency_ramp.yaml --runtime custom-http
-```
-
-## Reproducibility
-
-Every run records enough to reproduce it. The relevant fields in
-`metrics.json`:
+每次 run 會記錄：
 
 ```json
 {
@@ -182,111 +210,52 @@ Every run records enough to reproduce it. The relevant fields in
   "temperature":              0.2,
   "network_policy":           { "mode": "disabled" },
   "seed":                     2718281828,
-  "injected_failure_task_ids": ["f-03", "f-07", "f-11"]
+  "injected_failure_task_ids": ["f-03", "f-07"]
 }
 ```
 
 ### Seed
 
-Anything random the runner does — currently just `failure_containment`'s
-failure injection — goes through a seeded PRNG (mulberry32). The seed
-is optional in the scenario file; if absent, the runner generates a
-32-bit seed and **always records the effective seed** in `metrics.json`
-so the run can be replayed.
+`failure_containment` 的失敗注入用 seeded PRNG（mulberry32）。沒設 seed 的話 runner 會自動生一個 32-bit 並記錄。要重現上一次的失敗組合，把 `metrics.json` 裡的 `seed` 抄進 scenario.yaml 就好。
 
-```yaml
-# scenarios/my_failure.yaml
-name: my_failure
-kind: failure_containment
-inject_failure_rate: 0.25
-seed: 42        # optional — omit to auto-generate (still recorded)
-```
+### 兩種 hash
 
-To **replay** a previous run's exact failure set, copy `seed` out of
-that run's `metrics.json` and put it in the scenario file:
+- **`dataset_hash`** — 只看輸入（task `id` + `prompt` + `payload` + `expect`），順序無關。問「這是同一份資料嗎？」用這個。
+- **`scenario_hash`** — 整個 YAML 檔的 hash，連 `max_concurrency`、temperature、comment 都算。問「這是完全同一個檔案嗎？」用這個。
 
-```bash
-# original run
-afb run scenarios/my_failure.yaml --runtime mock --out runs
-# → metrics.json contains "seed": 2718281828
+---
 
-# add `seed: 2718281828` to the scenario, then re-run:
-afb run scenarios/my_failure.yaml --runtime mock --out runs
-# → same injected_failure_task_ids as the original
-```
+## 安全預設值
 
-### `injected_failure_task_ids`
+| 預設 | 意思 | 狀態 |
+|---|---|---|
+| Coding scenario 預設 patch-only | `kind: coding_*` 不加 `--apply` 拒跑 | **強制執行** |
+| 檔案改動只在 run 目錄內 | 走 `ScopedFS` helper 的 adapter 受限 | **強制執行** |
+| 預設禁止 task 連網 | scenario 的 `network_policy` 預設 `disabled` | 契約 + 記錄 |
+| API key 永不寫入 log | `events.jsonl` 跟 `metrics.json` 都不會出現 key | **強制執行**（有 regression test 守住） |
 
-For `failure_containment` runs, this lists every task ID that had a
-failure injected on its first attempt. Derivable from the seed but
-recorded for fast diffing — to confirm two runs exercised the same
-failure modes, diff the arrays directly:
+---
+
+## Custom HTTP — 包自己的 runtime
+
+`custom-http` 把 task POST 給任何一個你指定的 endpoint。20 行 Node 就能包好。
 
 ```bash
-jq '.injected_failure_task_ids' runs/run_A/metrics.json
-jq '.injected_failure_task_ids' runs/run_B/metrics.json
+export AFB_CUSTOM_HTTP_URL=http://localhost:8787
+afb run scenarios/concurrency_ramp.yaml --runtime custom-http --provider google --model gemini-3.5-flash
 ```
 
-### What changes which hash
+完整契約跟參考實作 (`examples/echo-server.mjs`) 見 [English README](./README.en.md#custom-http--benchmark-your-own-runtime-without-writing-ts)。
 
-| Change | `dataset_hash` | `scenario_hash` |
-| --- | :---: | :---: |
-| Task `prompt` / `payload` / `expect` edit | ✓ | ✓ |
-| Task `id` rename | ✓ | ✓ |
-| Reorder tasks (same `id`s) | — | ✓ |
-| Edit `max_concurrency` / `temperature` / `retries` | — | ✓ |
-| Edit a comment in the YAML | — | ✓ |
+---
 
-Use `dataset_hash` when you want to ask "is this the **same data**,
-regardless of settings?". Use `scenario_hash` for "is this the **exact
-same file**?".
+## 揭露
 
-A reproducible re-run requires: same `dataset_hash` + same `seed` +
-same `temperature` + same `prompt_template_version` +
-`scoring_profile_version` + `evaluator.version`. Provider non-determinism
-(server-side sampling, even at `temperature: 0`) is the remaining
-uncontrollable — that's why every adapter response is also written to
-`events.jsonl`, so a "did we get a different answer this time?" diff
-is always possible.
+我不是專業開發者。這個專案是用 **Claude Opus 4.7**（Anthropic）為主要 code author 從手寫 spec 出發完成。預期會有粗糙的地方、缺少的 convention，跟資深工程師會 push back 的設計選擇 — 非常歡迎 PR 與批評。
 
-## Safety defaults
+目標是先讓 MVP 端到端跑得通；硬化跟 idiomatic 優化會慢慢補。
 
-Per spec §13. The table below distinguishes **enforced** (refuses to run if
-violated) from **contractual** (adapter promises to honor it; runner records
-the policy in `metrics.json` for audit but cannot prevent a malicious adapter
-from breaking the rule).
-
-| Default | What it means | Status |
-| --- | --- | --- |
-| Coding scenarios are patch-only | `kind: coding_*` refuses to run without `--apply` | **Enforced** (pre-flight check in runner) |
-| File mutations stay in run dir | Adapters write only inside `runs/<run_id>/` | **Enforced for adapters that use `ScopedFS`**; contractual for those that don't |
-| Network access disabled by default | Scenario tasks (not the adapter's own API call) cannot reach the network unless `network_policy` opts in | Contractual + recorded — raw-API adapters have no separate network surface, so they ignore this; agent-runtime adapters MUST honor it |
-| API keys never logged | `events.jsonl` and `metrics.json` never contain env-var key values | **Enforced** (the runner never reads env vars into log fields; covered by a regression test) |
-
-`network_policy` modes (set per scenario, default `disabled`):
-
-```yaml
-network_policy:
-  mode: disabled         # task workers may not initiate network calls
-# or
-  mode: adapter_only     # only the adapter's provider API call is allowed
-# or
-  mode: allowlist
-  hosts: [ "example.com", "raw.githubusercontent.com" ]
-```
-
-Every run records the effective `network_policy` and `apply` flag in
-`metrics.json` so a reviewer can verify what was in force.
-
-## Disclosure
-
-I'm not a professional developer. This project was scaffolded and written with
-**Claude Opus 4.7** (Anthropic) as the primary code author, working from a
-hand-written spec. Expect rough edges, missing conventions, and design choices
-that a seasoned engineer might push back on — PRs and critique are very welcome.
-
-The goal was to land a working MVP that matches the spec end-to-end; hardening
-and idiomatic polish will follow.
+---
 
 ## License
 
