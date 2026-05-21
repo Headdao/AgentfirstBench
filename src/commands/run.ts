@@ -1,10 +1,12 @@
-import { resolve } from 'node:path';
+import { readFile, writeFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 import { loadScenario } from '../scenarios/loader.js';
 import { loadConfig } from '../config/loader.js';
 import { runScenario } from '../runners/runner.js';
 import { getAdapter, listAdapters } from '../adapters/registry.js';
 import { formatUsd, formatTokens } from '../utils/format.js';
 import { Spinner } from '../utils/spinner.js';
+import { renderMarkdown } from '../reports/markdown.js';
 
 interface RunOptions {
   out: string;
@@ -111,6 +113,12 @@ export async function runCommand(scenarioPath: string, opts: RunOptions): Promis
   }
   spinner.stop();
 
+  // Auto-render report.md so the user doesn't have to run a second command.
+  const metricsPath = join(result.runDir, 'metrics.json');
+  const reportPath = join(result.runDir, 'report.md');
+  const metrics = JSON.parse(await readFile(metricsPath, 'utf8'));
+  await writeFile(reportPath, renderMarkdown(metrics), 'utf8');
+
   console.log(`Run complete: ${result.runDir}`);
   console.log(`Workers: ${result.workersCompleted}/${result.workersTotal} succeeded`);
   const tokens = `${formatTokens(result.totalInputTokens)} in + ${formatTokens(result.totalOutputTokens)} out`;
@@ -121,4 +129,5 @@ export async function runCommand(scenarioPath: string, opts: RunOptions): Promis
   } else {
     console.log(`Cost:    unavailable — no pricing entry for ${provider}/${model} (${tokens})`);
   }
+  console.log(`Report:  ${reportPath}`);
 }
