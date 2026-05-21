@@ -97,10 +97,13 @@ export async function runScenario(opts: RunnerOptions): Promise<RunnerResult> {
   let evalPasses = 0;
   let workersRetried = 0;
 
-  // Resolve evaluator. Fall back to success if name not registered (with a warning).
+  // Resolve evaluator. Fall back to success if name not registered.
+  // Only warn if the user explicitly named one we don't know about — if
+  // the field is unset, the YAML schema default ('success') applies and
+  // there's nothing to warn about.
   const evaluatorName = opts.scenario.evaluator;
-  const evaluator = getEvaluator(evaluatorName) ?? successEvaluator;
-  if (evaluator.name !== evaluatorName) {
+  const evaluator = (evaluatorName ? getEvaluator(evaluatorName) : undefined) ?? successEvaluator;
+  if (evaluatorName && evaluator.name !== evaluatorName) {
     console.warn(
       `Warning: evaluator '${evaluatorName}' not registered, falling back to '${evaluator.name}'`,
     );

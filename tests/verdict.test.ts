@@ -181,4 +181,46 @@ describe('verdictForMatrix', () => {
     ]);
     expect(v).toMatch(/No model.*was reliable/);
   });
+
+  it('flags ties on accuracy explicitly when all models tie', () => {
+    const v = verdictForMatrix([
+      row('a', {
+        evaluator: { name: 'exact_match', version: '1.0.0' },
+        eval_pass_rate: 0.75,
+        avg_latency_ms: 500,
+      }),
+      row('b', {
+        evaluator: { name: 'exact_match', version: '1.0.0' },
+        eval_pass_rate: 0.75,
+        avg_latency_ms: 1000,
+      }),
+      row('c', {
+        evaluator: { name: 'exact_match', version: '1.0.0' },
+        eval_pass_rate: 0.75,
+        avg_latency_ms: 1500,
+      }),
+    ]);
+    expect(v).toMatch(/Most accurate.*all 3 tied/);
+    expect(v).toMatch(/doesn't separate them/);
+    // Should NOT name a single winner.
+    expect(v).not.toMatch(/Most accurate.*`a`.*75/);
+  });
+
+  it('lists tied subset when 2 of 3 tie (all reliable)', () => {
+    const v = verdictForMatrix([
+      row('a', {
+        evaluator: { name: 'exact_match', version: '1.0.0' },
+        eval_pass_rate: 0.9,
+      }),
+      row('b', {
+        evaluator: { name: 'exact_match', version: '1.0.0' },
+        eval_pass_rate: 0.9,
+      }),
+      row('c', {
+        evaluator: { name: 'exact_match', version: '1.0.0' },
+        eval_pass_rate: 0.8, // above 0.7 reliability threshold but below the tied pair
+      }),
+    ]);
+    expect(v).toMatch(/Most accurate.*tied, 2\/3.*`a`.*`b`/);
+  });
 });

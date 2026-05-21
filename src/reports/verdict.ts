@@ -134,44 +134,74 @@ export function verdictForMatrix(rows: MatrixRow[]): string {
     lines.push('- No model in this matrix was reliable (<95% success). All flagged below.');
   } else {
     // Cheapest reliable (min $/success)
-    const cheapest = pickMin(reliable, (r) => costPerSuccess(r.metrics));
+    const cheapestWinners = pickWinners(reliable, (r) => costPerSuccess(r.metrics), 'min');
     lines.push(
-      `- **Cheapest reliable**: \`${cheapest.label}\` (${formatUsd(costPerSuccess(cheapest.metrics))} per success)`,
+      formatWinner(
+        'Cheapest reliable',
+        cheapestWinners,
+        reliable.length,
+        (r) => `${formatUsd(costPerSuccess(r.metrics))} per success`,
+        (v) => `${formatUsd(v)} per success`,
+      ),
     );
 
     // Most accurate (only when a real evaluator was used)
     if (hasAccuracy) {
-      const mostAccurate = pickMax(reliable, (r) => r.metrics.eval_pass_rate);
+      const accuracyWinners = pickWinners(reliable, (r) => r.metrics.eval_pass_rate, 'max');
+      const evName = reliable[0].metrics.evaluator.name;
       lines.push(
-        `- **Most accurate**: \`${mostAccurate.label}\` (${(mostAccurate.metrics.eval_pass_rate * 100).toFixed(1)}% pass — ${mostAccurate.metrics.evaluator.name})`,
+        formatWinner(
+          'Most accurate',
+          accuracyWinners,
+          reliable.length,
+          (r) => `${(r.metrics.eval_pass_rate * 100).toFixed(1)}% pass — ${evName}`,
+          (v) =>
+            `${(v * 100).toFixed(1)}% pass — accuracy doesn't separate them, decide by cost/speed`,
+        ),
       );
     }
 
     // Fastest avg
-    const fastest = pickMin(reliable, (r) => r.metrics.avg_latency_ms);
-    lines.push(`- **Fastest avg**: \`${fastest.label}\` (${Math.round(fastest.metrics.avg_latency_ms)}ms)`);
+    const fastestWinners = pickWinners(reliable, (r) => r.metrics.avg_latency_ms, 'min');
+    lines.push(
+      formatWinner(
+        'Fastest avg',
+        fastestWinners,
+        reliable.length,
+        (r) => `${Math.round(r.metrics.avg_latency_ms)}ms`,
+        (v) => `${Math.round(v)}ms`,
+      ),
+    );
 
     // Best for scale (sweep scenarios only)
     const sweepReliable = reliable.filter(
       (r) => r.metrics.per_level && r.metrics.per_level.length > 1,
     );
     if (sweepReliable.length > 0) {
-      // Prefer models still scaling (no inflection); among those, highest peak.
-      // If none still scaling, highest peak overall.
       const stillScaling = sweepReliable.filter((r) => {
         const s = summarizeSweep(r.metrics.per_level!);
         return s && !s.inflection;
       });
       const pool = stillScaling.length > 0 ? stillScaling : sweepReliable;
-      const best = pickMax(pool, (r) => {
-        const s = summarizeSweep(r.metrics.per_level!);
-        return s?.peak_throughput.value ?? 0;
-      });
-      const sum = summarizeSweep(best.metrics.per_level!)!;
-      const note = sum.inflection
-        ? `peaks ${sum.peak_throughput.value.toFixed(2)}/s @ N=${sum.peak_throughput.at_concurrency}`
-        : `${sum.peak_throughput.value.toFixed(2)}/s @ N=${sum.peak_throughput.at_concurrency}, still scaling — try higher N`;
-      lines.push(`- **Best for scale**: \`${best.label}\` (${note})`);
+      const scaleWinners = pickWinners(
+        pool,
+        (r) => summarizeSweep(r.metrics.per_level!)?.peak_throughput.value ?? 0,
+        'max',
+      );
+      lines.push(
+        formatWinner(
+          'Best for scale',
+          scaleWinners,
+          pool.length,
+          (r) => {
+            const sum = summarizeSweep(r.metrics.per_level!)!;
+            return sum.inflection
+              ? `peaks ${sum.peak_throughput.value.toFixed(2)}/s @ N=${sum.peak_throughput.at_concurrency}`
+              : `${sum.peak_throughput.value.toFixed(2)}/s @ N=${sum.peak_throughput.at_concurrency}, still scaling — try higher N`;
+          },
+          (v) => `${v.toFixed(2)}/s peak — throughput doesn't separate them`,
+        ),
+      );
     }
   }
 
@@ -210,28 +240,39 @@ function costPerSuccess(m: RunMetrics): number {
   return m.workers_succeeded > 0 ? m.total_cost_usd / m.workers_succeeded : 0;
 }
 
-function pickMin<T>(items: T[], score: (t: T) => number): T {
-  let best = items[0];
-  let bestScore = score(best);
-  for (const t of items) {
-    const s = score(t);
-    if (s < bestScore) {
-      best = t;
-      bestScore = s;
-    }
-  }
-  return best;
+interface Winners<T> {
+  winners: T[];
+  value: number;
 }
 
-function pickMax<T>(items: T[], score: (t: T) => number): T {
-  let best = items[0];
-  let bestScore = score(best);
-  for (const t of items) {
-    const s = score(t);
-    if (s > bestScore) {
-      best = t;
-      bestScore = s;
-    }
+function pickWinners<T>(items: T[], score: (t: T) => number, mode: 'min' | 'max'): Winners<T> {
+  if (items.length === 0) return { winners: [], value: 0 };
+  const scores = items.map((t) => score(t));
+  const best = mode === 'min' ? Math.min(...scores) : Math.max(...scores);
+  const winners: T[] = [];
+  scores.forEach((s, i) => {
+    if (s === best) winners.push(items[i]);
+  });
+  return { winners, value: best };
+}
+
+function formatWinner<T extends { label: string }>(
+  category: string,
+  result: Winners<T>,
+  totalCandidates: number,
+  formatOne: (t: T) => string,
+  formatAllTied: (value: number) => string,
+): string {
+  const { winners, value } = result;
+  if (winners.length === 0) return `- **${category}**: —`;
+  if (winners.length === 1) {
+    return `- **${category}**: \`${winners[0].label}\` (${formatOne(winners[0])})`;
   }
-  return best;
+  if (winners.length === totalCandidates) {
+    // Everyone tied — useless as a winner pick, redirect the user.
+    return `- **${category}** (all ${totalCandidates} tied): ${formatAllTied(value)}`;
+  }
+  // Some tied, but not all — list them.
+  const labels = winners.map((w) => `\`${w.label}\``).join(', ');
+  return `- **${category}** (tied, ${winners.length}/${totalCandidates}): ${labels} — ${formatOne(winners[0])}`;
 }
