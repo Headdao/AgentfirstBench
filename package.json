@@ -15,7 +15,7 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && chmod +x dist/cli.js",
     "dev": "tsx src/cli.ts",
     "afb": "tsx src/cli.ts",
     "test": "vitest run",
