@@ -319,6 +319,11 @@ export async function runScenario(opts: RunnerOptions): Promise<RunnerResult> {
     workers_failed: allResults.length - succeeded.length,
     workers_retried: workersRetried,
     success_rate: allResults.length ? succeeded.length / allResults.length : 0,
+    // Flat scenarios: each task IS its own "cycle". Mirror workers_* into cycles_*.
+    cycles_total: allResults.length,
+    cycles_succeeded: succeeded.length,
+    cycles_failed: allResults.length - succeeded.length,
+    final_success_rate: allResults.length ? succeeded.length / allResults.length : 0,
     avg_latency_ms: mean(latencies),
     p50_latency_ms: percentile(latencies, 50),
     p95_latency_ms: percentile(latencies, 95),

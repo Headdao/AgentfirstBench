@@ -67,6 +67,15 @@ export function verdictForRun(m: RunMetrics): string {
     );
   }
 
+  // Orchestration (only for orchestration scenarios)
+  if (m.coordinator_latency_ms !== undefined) {
+    const overhead = m.coordination_overhead_pct ?? 0;
+    const overheadIcon = overhead < 20 ? '✓' : overhead < 50 ? '⚠️' : '✗';
+    lines.push(
+      `- **Orchestration**: ${m.cycles_succeeded}/${m.cycles_total} cycles · ${m.workers_succeeded}/${m.workers_total} subworkers · ${overheadIcon} ${overhead.toFixed(1)}% coordination tax`,
+    );
+  }
+
   // Scaling (only for sweep scenarios)
   if (m.per_level && m.per_level.length > 1) {
     const sum = summarizeSweep(m.per_level);

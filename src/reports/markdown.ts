@@ -47,6 +47,23 @@ export function renderMarkdown(m: RunMetrics): string {
   lines.push(`| Total cost | ${formatUsd(m.total_cost_usd)} (${costNote}) |`);
   lines.push('');
 
+  if (m.coordinator_latency_ms !== undefined) {
+    lines.push(`## Orchestration`);
+    lines.push('');
+    lines.push(`| Metric | Value |`);
+    lines.push(`| --- | --- |`);
+    lines.push(`| Cycles | ${m.cycles_succeeded}/${m.cycles_total} (${(m.final_success_rate * 100).toFixed(1)}% final) |`);
+    lines.push(`| Subworkers | ${m.workers_succeeded}/${m.workers_total} (${(m.success_rate * 100).toFixed(1)}%) |`);
+    lines.push(`| Coordinator avg latency | ${Math.round(m.coordinator_latency_ms)} ms |`);
+    lines.push(`| Merge avg latency | ${Math.round(m.merge_latency_ms ?? 0)} ms |`);
+    lines.push(`| Worker total latency | ${m.worker_latency_ms_total ?? 0} ms |`);
+    lines.push(`| Coordination overhead | ${(m.coordination_overhead_pct ?? 0).toFixed(1)}% (of wall time) |`);
+    lines.push(`| Worker utilization | ${(m.worker_utilization_pct ?? 0).toFixed(1)}% (of wall time) |`);
+    lines.push('');
+    lines.push(`> Coordination overhead = (Σ coordinator + Σ merge) / wall_time. The "tax" the runtime adds beyond worker execution.`);
+    lines.push('');
+  }
+
   if (m.per_level && m.per_level.length > 0) {
     lines.push(`## Concurrency sweep`);
     lines.push('');

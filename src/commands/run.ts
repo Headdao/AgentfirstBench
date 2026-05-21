@@ -121,7 +121,13 @@ export async function runCommand(scenarioPath: string, opts: RunOptions): Promis
   await writeFile(reportPath, renderMarkdown(metrics), 'utf8');
 
   console.log(`Run complete: ${result.runDir}`);
-  console.log(`Workers: ${result.workersCompleted}/${result.workersTotal} succeeded`);
+  const isOrchestration = metrics.coordinator_latency_ms !== undefined;
+  if (isOrchestration) {
+    console.log(`Cycles:  ${metrics.cycles_succeeded}/${metrics.cycles_total} succeeded`);
+    console.log(`Workers: ${metrics.workers_succeeded}/${metrics.workers_total} subworkers`);
+  } else {
+    console.log(`Workers: ${result.workersCompleted}/${result.workersTotal} succeeded`);
+  }
   const tokens = `${formatTokens(result.totalInputTokens)} in + ${formatTokens(result.totalOutputTokens)} out`;
   if (result.costSource === 'pricing_table') {
     console.log(`Cost:    ${formatUsd(result.totalCostUsd)} (${provider}/${model}, ${tokens})`);

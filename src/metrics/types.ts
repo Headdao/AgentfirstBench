@@ -52,7 +52,18 @@ export interface RunMetrics {
    * v0.2 orchestration metrics. All zero/undefined for non-orchestration
    * scenarios. For orchestration scenarios these are averaged across the
    * top-level coordinator cycles in the run.
+   *
+   * Note on units: in orchestration runs `workers_*` count *subworkers*
+   * (every task the coordinator dispatched), while `cycles_*` count
+   * top-level coordinator cycles. `success_rate` = workers_succeeded /
+   * workers_total. `final_success_rate` = cycles_succeeded /
+   * cycles_total. For non-orchestration runs the two are equal.
    */
+  cycles_total: number;
+  cycles_succeeded: number;
+  cycles_failed: number;
+  final_success_rate: number;
+
   coordinator_latency_ms?: number;
   worker_latency_ms_total?: number;
   merge_latency_ms?: number;

@@ -49,11 +49,16 @@ export const mockCoordinatorAdapter: AgentRuntimeAdapter = {
       });
       extraDelay = parseLatency(process.env.AFB_MOCK_COORDINATOR_LATENCY_MS);
     } else if (promptLower.includes('worker summaries:') || promptLower.includes('synthesize')) {
-      // Merge step.
+      // Merge step. Output deliberately includes the keywords the bundled
+      // orchestration_research.yaml's `contains` evaluator looks for
+      // (scheduler / recall / latency) so the offline smoke run passes.
+      // A real coordinator runtime would echo the workers' content; this
+      // just makes the demo self-consistent.
       output =
-        'Synthesis: the three subtopics converge on the same practical conclusion. ' +
-        'Historical context shapes the current approach; tradeoffs cluster around ' +
-        'latency, cost, and operational complexity. No contradictions observed.';
+        'Synthesis: workers converged on three practical levers — scheduler ' +
+        'behavior, recall tradeoffs, and latency budgets. Historical context ' +
+        'shapes today\'s defaults; current choices cluster around operational ' +
+        'fit rather than peak performance. No contradictions observed.';
       extraDelay = parseLatency(process.env.AFB_MOCK_MERGE_LATENCY_MS);
     } else if (promptLower.includes('subtopic:')) {
       // Worker step.

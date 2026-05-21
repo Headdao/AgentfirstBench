@@ -163,6 +163,10 @@ export async function runOrchestrationScenario(opts: RunnerOptions): Promise<Run
       plan.subtopics.map((subtopic, idx) =>
         limit(async () => {
           const workerId = `${task.id}::w${idx}`;
+          // worker_assigned is the orchestration-level semantic event
+          // (coordinator handed this subtopic to a worker). The
+          // worker_started/worker_completed pair below is what EventLog
+          // uses to track real active concurrency for peak_concurrency.
           log.emit('worker_assigned', {
             coordinator_task: task.id,
             worker_id: workerId,
@@ -172,6 +176,7 @@ export async function runOrchestrationScenario(opts: RunnerOptions): Promise<Run
           emitProgress();
 
           const workerPrompt = substitute(orch.worker_template.prompt, { subtopic });
+          log.emit('worker_started', { task_id: workerId, attempt: 1 });
           const wStart = Date.now();
           const result = await safeRunTask(opts.adapter, {
             taskId: workerId,
@@ -189,13 +194,15 @@ export async function runOrchestrationScenario(opts: RunnerOptions): Promise<Run
           progress.active = Math.max(0, progress.active - 1);
           emitProgress();
 
-          log.emit('artifact_created', {
-            worker_id: workerId,
-            ok: result.ok,
-            output_chars: result.output.length,
-            latency_ms: wLatency,
-          });
-          if (!result.ok) {
+          if (result.ok) {
+            log.emit('worker_completed', {
+              task_id: workerId,
+              attempt: 1,
+              latency_ms: wLatency,
+              input_tokens: result.usage?.input_tokens,
+              output_tokens: result.usage?.output_tokens,
+            });
+          } else {
             log.emit('worker_failed', {
               task_id: workerId,
               attempt: 1,
@@ -204,6 +211,12 @@ export async function runOrchestrationScenario(opts: RunnerOptions): Promise<Run
               latency_ms: wLatency,
             });
           }
+          log.emit('artifact_created', {
+            worker_id: workerId,
+            ok: result.ok,
+            output_chars: result.output.length,
+            latency_ms: wLatency,
+          });
 
           totalWorkers += 1;
           if (result.ok) succeededWorkers += 1;
@@ -293,7 +306,8 @@ export async function runOrchestrationScenario(opts: RunnerOptions): Promise<Run
 
   // Latency stats over the per-cycle final outputs.
   const finalLatencies = finalResults.map((r) => r.latencyMs);
-  const succeeded = finalResults.filter((r) => r.ok).length;
+  const cyclesSucceeded = finalResults.filter((r) => r.ok).length;
+  const cyclesTotal = finalResults.length;
 
   const sumCoord = coordinatorLatencies.reduce((a, b) => a + b, 0);
   const sumMerge = mergeLatencies.reduce((a, b) => a + b, 0);
@@ -325,7 +339,11 @@ export async function runOrchestrationScenario(opts: RunnerOptions): Promise<Run
     workers_succeeded: succeededWorkers,
     workers_failed: totalWorkers - succeededWorkers,
     workers_retried: 0,
-    success_rate: finalResults.length ? succeeded / finalResults.length : 0,
+    success_rate: totalWorkers ? succeededWorkers / totalWorkers : 0,
+    cycles_total: cyclesTotal,
+    cycles_succeeded: cyclesSucceeded,
+    cycles_failed: cyclesTotal - cyclesSucceeded,
+    final_success_rate: cyclesTotal ? cyclesSucceeded / cyclesTotal : 0,
     avg_latency_ms: mean(finalLatencies),
     p50_latency_ms: percentile(finalLatencies, 50),
     p95_latency_ms: percentile(finalLatencies, 95),
@@ -360,8 +378,8 @@ export async function runOrchestrationScenario(opts: RunnerOptions): Promise<Run
 
   return {
     runDir,
-    workersTotal: finalResults.length, // top-level cycles, what the user thinks of as "tasks"
-    workersCompleted: succeeded,
+    workersTotal: cyclesTotal, // top-level cycles, what the user thinks of as "tasks"
+    workersCompleted: cyclesSucceeded,
     totalCostUsd,
     costSource,
     totalInputTokens,

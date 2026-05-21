@@ -162,6 +162,118 @@ describe('orchestration runner', () => {
     expect(log).toMatch(/"event":"run_completed"/);
   });
 
+  it('tracks real active concurrency via worker_started/completed (P1 fix)', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'afb-orch-'));
+    const result = await runScenario({
+      scenario: baseOrchestration,
+      adapter: mockCoordinatorAdapter,
+      outDir,
+      provider: 'mock',
+      model: 'mock-model',
+      runtime: 'mock-coordinator',
+      maxConcurrency: 4,
+      apply: false,
+    });
+    const metrics = JSON.parse(await readFile(join(result.runDir, 'metrics.json'), 'utf8'));
+    // Was 0 in the broken version — EventLog only updates active on
+    // worker_started/completed and those weren't emitted.
+    expect(metrics.peak_concurrency).toBeGreaterThan(0);
+    expect(metrics.peak_concurrency).toBeLessThanOrEqual(3); // 3 subworkers in the plan
+    const log = await readFile(join(result.runDir, 'events.jsonl'), 'utf8');
+    expect(log).toMatch(/"event":"worker_started"/);
+    expect(log).toMatch(/"event":"worker_completed"/);
+  });
+
+  it('reports cycles and subworkers as separate metrics (P1 fix)', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'afb-orch-'));
+    const result = await runScenario({
+      scenario: baseOrchestration,
+      adapter: mockCoordinatorAdapter,
+      outDir,
+      provider: 'mock',
+      model: 'mock-model',
+      runtime: 'mock-coordinator',
+      maxConcurrency: 4,
+      apply: false,
+    });
+    const metrics = JSON.parse(await readFile(join(result.runDir, 'metrics.json'), 'utf8'));
+    // 1 cycle, 3 subworkers — two separate units.
+    expect(metrics.cycles_total).toBe(1);
+    expect(metrics.cycles_succeeded).toBe(1);
+    expect(metrics.workers_total).toBe(3);
+    expect(metrics.workers_succeeded).toBe(3);
+    expect(metrics.success_rate).toBe(1); // = workers_succeeded / workers_total
+    expect(metrics.final_success_rate).toBe(1); // = cycles_succeeded / cycles_total
+    // CLI's RunnerResult uses cycle-level for the user-facing count.
+    expect(result.workersTotal).toBe(1);
+    expect(result.workersCompleted).toBe(1);
+  });
+
+  it('flat scenarios mirror workers_* into cycles_* (back-compat)', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'afb-orch-'));
+    const flatScenario: LoadedScenario = {
+      name: 'flat',
+      kind: 'research_synthesis',
+      retries: 0,
+      scenario_hash: 'sh',
+      dataset_hash: 'dh',
+      network_policy: { mode: 'disabled' },
+      prompt_template_version: 'inline/v1',
+      scoring_profile_version: 'default/v1',
+      tasks: [
+        { id: 't1', prompt: 'one' },
+        { id: 't2', prompt: 'two' },
+      ],
+    };
+    const echoAdapter: AgentRuntimeAdapter = {
+      name: 'echo',
+      async runTask(input: AgentTaskInput): Promise<AgentTaskResult> {
+        return { taskId: input.taskId, ok: true, output: 'x', latencyMs: 1 };
+      },
+    };
+    const result = await runScenario({
+      scenario: flatScenario,
+      adapter: echoAdapter,
+      outDir,
+      provider: 'mock',
+      model: 'mock-model',
+      runtime: 'echo',
+      maxConcurrency: 2,
+      apply: false,
+    });
+    const metrics = JSON.parse(await readFile(join(result.runDir, 'metrics.json'), 'utf8'));
+    expect(metrics.workers_total).toBe(metrics.cycles_total);
+    expect(metrics.workers_succeeded).toBe(metrics.cycles_succeeded);
+    expect(metrics.success_rate).toBe(metrics.final_success_rate);
+  });
+
+  it('orchestration_research bundled scenario passes its own evaluator (P2 fix)', async () => {
+    // The bundled scenarios/orchestration_research.yaml has needles
+    // scheduler/recall/latency for its 3 tasks; mock-coordinator's merge
+    // output must include all three so the offline smoke run reports 100%.
+    const outDir = await mkdtemp(join(tmpdir(), 'afb-orch-'));
+    const realisticScenario: LoadedScenario = {
+      ...baseOrchestration,
+      tasks: [
+        { id: 't1', prompt: 'ignored', payload: { topic: 'async' }, expect: { needles: ['scheduler'] } },
+        { id: 't2', prompt: 'ignored', payload: { topic: 'vector' }, expect: { needles: ['recall'] } },
+        { id: 't3', prompt: 'ignored', payload: { topic: 'edge' }, expect: { needles: ['latency'] } },
+      ],
+    };
+    const result = await runScenario({
+      scenario: realisticScenario,
+      adapter: mockCoordinatorAdapter,
+      outDir,
+      provider: 'mock',
+      model: 'mock-model',
+      runtime: 'mock-coordinator',
+      maxConcurrency: 4,
+      apply: false,
+    });
+    const metrics = JSON.parse(await readFile(join(result.runDir, 'metrics.json'), 'utf8'));
+    expect(metrics.eval_pass_rate).toBe(1); // was 0.333 before the merge text fix
+  });
+
   it('refuses to run an orchestration scenario missing the orchestration block', async () => {
     const outDir = await mkdtemp(join(tmpdir(), 'afb-orch-'));
     const broken: LoadedScenario = { ...baseOrchestration, orchestration: undefined };
