@@ -48,7 +48,7 @@ ANTHROPIC_API_KEY=… afb run scenarios/concurrency_ramp.yaml \
 
 # OpenAI
 OPENAI_API_KEY=… afb run scenarios/concurrency_ramp.yaml \
-  --runtime raw-openai --provider openai --model gpt-4o-mini
+  --runtime raw-openai --provider openai --model gpt-5.4-mini
 
 # Google Gemini
 GOOGLE_API_KEY=… afb run scenarios/concurrency_ramp.yaml \
